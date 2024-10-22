@@ -1,0 +1,122 @@
+import os
+
+import torch
+from torch.optim import AdamW
+from tqdm import tqdm
+
+from moviad.models.cfa.cfa import CFA
+from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
+from moviad.utilities.evaluator import Evaluator
+
+class TrainerCFA():
+
+    """
+    This class contains the code for training the CFA model
+
+    Args:
+        cfa_model (CFA): model to be trained
+        backbone (str) : feature extractor backbone
+        feature_extractor (CustomFeatureExtractor): feature extractor to be used
+        train_dataloader (torch.utils.data.DataLoader): train dataloader
+        test_dataloder (torch.utils.data.DataLoader): test dataloader
+        category (str): mvtec category
+        device (str): device to be used for the training
+    """
+
+    def __init__(
+        self,
+        cfa_model: CFA,
+        backbone: str, 
+        feature_extractor: CustomFeatureExtractor, 
+        train_dataloader: torch.utils.data.DataLoader,
+        test_dataloder: torch.utils.data.DataLoader,
+        category: str,
+        device: str,
+    ):
+        self.cfa_model = cfa_model
+        self.backbone = backbone
+        self.feature_extractor = feature_extractor
+        self.train_dataloader = train_dataloader
+        self.test_dataloader = test_dataloder
+        self.device = device
+        self.evaluator = Evaluator(self.test_dataloader, self.device)  
+        self.category = category
+        
+    
+    def train(self, epochs: int):
+        """
+        Train the model by first extracting the features from the batches, transform them 
+        with the patch descriptor and then apply the CFA loss
+
+        Args:
+            epochs (int) : number of epochs for the training
+            save_model (bool) : true if the model must be saved at the end of training 
+            visual_test (bool) : true if we want to produce test images with heatmaps
+        """
+
+        params = [{'params' : self.cfa_model.parameters()},]
+        optimizer     = AdamW(params        = params, 
+                              lr            = 1e-3,
+                              weight_decay  = 5e-4,
+                              amsgrad       = True )
+
+
+        best_img_roc = 0
+        best_pxl_roc = 0
+        best_img_f1 = 0
+        best_pxl_f1 = 0
+        best_img_pr = 0
+        best_pxl_pr = 0  
+        best_pxl_pro = 0
+
+        self.cfa_model.train()
+        
+        for epoch in range(epochs):
+
+            print(f"EPOCH: {epoch}")
+
+            self.cfa_model.train()
+            for batch in tqdm(self.train_dataloader):
+                optimizer.zero_grad()
+
+                """
+                p = self.feature_extractor(batch.to(self.device))
+                if isinstance(p, dict):
+                    p = list(p.values())
+                    
+                loss, _ = self.cfa_model(p)
+                """
+                loss = self.cfa_model(batch.to(self.device))
+                loss.backward()
+                optimizer.step()
+
+            img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.cfa_model)
+
+            best_img_roc = img_roc if img_roc > best_img_roc else best_img_roc
+            best_pxl_roc = pxl_roc if pxl_roc > best_pxl_roc else best_pxl_roc
+            best_img_f1  = f1_img if f1_img > best_img_f1 else best_img_f1
+            best_pxl_f1  = f1_pxl if f1_pxl > best_pxl_f1 else best_pxl_f1
+            best_img_pr  = img_pr if img_pr > best_img_pr else best_img_pr
+            best_pxl_pr  = pxl_pr if pxl_pr > best_pxl_pr else best_pxl_pr
+            best_pxl_pro = pxl_pro if pxl_pro > best_pxl_pro else best_pxl_pro
+
+            print("End training performances:")
+            print(f"""
+                img_roc: {img_roc} \n
+                pxl_roc: {pxl_roc} \n
+                f1_img: {f1_img} \n
+                f1_pxl: {f1_pxl} \n
+                img_pr: {img_pr} \n
+                pxl_pr: {pxl_pr} \n
+                pxl_pro: {pxl_pro} \n
+            """)
+
+        dirname = os.path.dirname(__file__)
+
+    
+
+
+
+
+        
+        
