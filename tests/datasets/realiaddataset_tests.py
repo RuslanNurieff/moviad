@@ -14,10 +14,8 @@ IMAGE_SIZE = (224,224)
 
 class RealIadDatasetTests(unittest.TestCase):
     def setUp(self):
-
-
         self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor()
         ])
 
@@ -50,7 +48,6 @@ class RealIadDatasetTests(unittest.TestCase):
         self.assertEqual(len(self.dataset.data), len(self.dataset.data.train))
 
     def test_dataset_should_get_item(self):
-        self.dataset.load_dataset()
         self.assertIsNotNone(self.dataset.data)
         self.assertIsNotNone(self.dataset.data.meta)
         self.assertIsNotNone(self.dataset.data.train)

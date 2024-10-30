@@ -9,6 +9,7 @@ from torchvision.transforms import ToPILImage
 from tqdm import tqdm
 
 from moviad.datasets.mvtec_dataset import MVTecDataset
+from moviad.datasets.realiad_dataset import RealIadDataset
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
@@ -37,7 +38,7 @@ def train_patchcore(dataset_path: str, category:str, backbone:str, ad_layers: li
     patchcore.to(device)
     patchcore.train()
 
-    trainer = TrainerPatchCore(patchcore, backbone, train_dataloader, test_dataloader, category, device)
+    trainer = TrainerPatchCore(patchcore, train_dataloader, test_dataloader, device)
     trainer.train()
 
     #save the model
@@ -54,7 +55,7 @@ def train_patchcore(dataset_path: str, category:str, backbone:str, ad_layers: li
     gc.collect()
 
 
-def test_patchcore(dataset_path: str, category:str, backbone: str, ad_layers: list, model_checkpoint_path:str, visual_test_path: str, device: torch.device):
+def test_patchcore(dataset_path: str, category:str, backbone: str, ad_layers: list, model_checkpoint_path:str, device: torch.device, visual_test_path: str = None):
 
     test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "test")
     print(f"Length test dataset: {len(test_dataset)}")
