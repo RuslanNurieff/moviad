@@ -46,7 +46,7 @@ def main(args):
                 save_figures,
             )
 
-            if args.train:
+            if args.data:
                 print("---- PaDiM train ----")
 
                 padim = Padim(
@@ -82,7 +82,7 @@ def main(args):
                 print("---- PaDiM test ----")
 
                 # load the model if it was not trained in this run
-                if not args.train:
+                if not args.data:
                     padim = Padim(
                         backbone_model_name,
                         category_name,

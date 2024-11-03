@@ -50,7 +50,7 @@ def main(args):
         input_sizes[model_name] = args.input_size
 
     # TRAIN AND SAVE BEST ###############################################
-    if args.train:
+    if args.data:
         ad_model = "stfpm"
 
         ad_layers = [ad_layers]
