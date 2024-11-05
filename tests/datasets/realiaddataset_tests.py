@@ -3,10 +3,8 @@
 import unittest
 
 import torch
-from torch import tensor
-from PIL.Image import Image
 from torchvision.transforms import transforms
-from moviad.datasets.realiad_dataset import RealIadDataset, RealIadClass
+from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClass
 from moviad.utilities.configurations import TaskType, Split
 
 REAL_IAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'
@@ -18,7 +16,8 @@ class RealIadTrainDatasetTests(unittest.TestCase):
     def setUp(self):
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
-            transforms.PILToTensor()
+            transforms.PILToTensor(),
+            transforms.ConvertImageDtype(torch.float32),
         ])
 
         self.dataset = RealIadDataset(RealIadClass.AUDIOJACK,
@@ -67,13 +66,17 @@ class RealIadTrainDatasetTests(unittest.TestCase):
         data, image, mask = self.dataset.__getitem__(0)
         self.assertIsNotNone(data)
         self.assertIsNotNone(image)
+        self.assertEqual(image.dtype, torch.float32)
         self.assertIsNotNone(mask)
+        self.assertEqual(mask.dtype, torch.float32)
+
 
 class RealIadTestDatasetTests(unittest.TestCase):
     def setUp(self):
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
-            transforms.PILToTensor()
+            transforms.PILToTensor(),
+            transforms.ConvertImageDtype(torch.float32),
         ])
 
         self.dataset = RealIadDataset(RealIadClass.AUDIOJACK,
@@ -114,13 +117,15 @@ class RealIadTestDatasetTests(unittest.TestCase):
         image, label, mask, path = self.dataset.__getitem__(0)
         self.assertIsNotNone(image)
         self.assertIs(type(image), torch.Tensor)
+        self.assertEqual(image.dtype, torch.float32)
         self.assertIsNotNone(label)
         self.assertIs(type(label), int)
+        self.assertIn(label, [0, 1]) # 0: normal, 1: abnormal
         self.assertIsNotNone(mask)
         self.assertIs(type(mask), torch.Tensor)
+        self.assertEqual(mask.dtype, torch.float32)
         self.assertIsNotNone(path)
         self.assertIs(type(path), str)
-
 
 
 if __name__ == '__main__':

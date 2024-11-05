@@ -4,22 +4,19 @@ from typing import List
 
 import torch
 
-from main_scripts.main_patchcore import train_patchcore, test_patchcore
+from main_scripts.main_patchcore import train_patchcore, test_patchcore, train_patchcore_2, test_patchcore_2
 
 MVTECH_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\mvtec'
 REALIAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'
-# Global variables for arguments
 MODE = "train"
 CATEGORY = "pill"
 BACKBONE = "mobilenet_v2"
 AD_LAYERS = ["features.4", "features.7", "features.10"]
 SAVE_PATH = "./patch.pt"
 VISUAL_TEST_PATH = "./visual_test"
-DEVICE = torch.device("cuda:0")
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 SEED = 1
 MODEL_CHECKPOINT_PATH = "./patch.pt"
-
-
 
 
 @dataclass
@@ -68,8 +65,8 @@ class PatchCoreTrainTests(unittest.TestCase):
 
     def test_patchcore_train_with_realiad_dataset(self):
         self.args.dataset_path = REALIAD_DATASET_PATH
-        train_patchcore(self.args.dataset_path, self.args.category, self.args.backbone, self.args.ad_layers,
-                        self.args.save_path, self.args.device)
+        train_patchcore_2(self.args.dataset_path, "audiojack", self.args.backbone, self.args.ad_layers,
+                          self.args.save_path, self.args.device)
 
 
 class PatchCoreInferenceTests(unittest.TestCase):
@@ -90,12 +87,12 @@ class PatchCoreInferenceTests(unittest.TestCase):
     def test_patchcore_inference_with_mvtec_dataset(self):
         self.args.dataset_path = MVTECH_DATASET_PATH
         test_patchcore(self.args.dataset_path, self.args.category, self.args.backbone, self.args.ad_layers,
-                        self.args.model_checkpoint_path, self.args.device)
+                       self.args.model_checkpoint_path, self.args.device)
 
     def test_patchcore_inference_with_realiad_dataset(self):
         self.args.dataset_path = REALIAD_DATASET_PATH
-        test_patchcore(self.args.dataset_path, self.args.category, self.args.backbone, self.args.ad_layers,
-                        self.args.model_checkpoint_path, self.args.device)
+        test_patchcore_2(self.args.dataset_path, 'audiojack', self.args.backbone, self.args.ad_layers,
+                         self.args.model_checkpoint_path, self.args.device)
 
 
 if __name__ == '__main__':

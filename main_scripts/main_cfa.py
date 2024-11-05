@@ -1,14 +1,11 @@
-from typing import List
-import random 
+import random
 import argparse
-import gc
 import pathlib
 
 import torch
-from torchvision.transforms import ToPILImage
 from tqdm import tqdm
 
-from moviad.datasets.mvtec_dataset import MVTecDataset
+from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.models.cfa.cfa import CFA
 from moviad.trainers.trainer_cfa import TrainerCFA

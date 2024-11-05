@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from moviad.models.padim.padim import Padim
 from moviad.trainers.trainer_padim import PadimTrainer
-from moviad.datasets.mvtec_dataset import MVTecDataset
+from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.utilities.evaluator import Evaluator, append_results
 from moviad.utilities.configurations import TaskType, Split
 

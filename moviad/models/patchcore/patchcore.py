@@ -306,7 +306,7 @@ class PatchCore(nn.Module):
         axes[2].axis('off')
         
         # Show the plot
-        plt.savefig(str(dirpath / f"{x_type}_{filename}.jpg"))
+        plt.savefig(str(dirpath + f"/{x_type}_{filename}.jpg"))
 
     def get_model_size_and_macs(self): 
         sizes = {}

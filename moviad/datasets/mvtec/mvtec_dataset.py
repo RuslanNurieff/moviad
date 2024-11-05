@@ -11,7 +11,7 @@ import torch
 from torchvision.transforms import transforms
 from torch.utils.data import Dataset
 
-from ..utilities.configurations import TaskType, Split, LabelName
+from moviad.utilities.configurations import TaskType, Split, LabelName
 
 IMG_EXTENSIONS = (".png", ".PNG")
 
