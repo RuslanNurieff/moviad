@@ -1,0 +1,11 @@
+einops
+pandas
+scipy
+matplotlib
+calflops
+transformers
+wandb
+scikit-learn
+scikit-image
+micromind
+tqdm

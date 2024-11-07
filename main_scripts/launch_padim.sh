@@ -14,4 +14,5 @@ python main_padim.py --debug --train --test \
     --device cuda:2 \
     --seeds 0 \
     --categories bottle \
-    --ad_layers_idxs 3 6 9
+    --
+    ad_layers_idxs 3 6 9
