@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Optional, List
 
@@ -12,6 +13,14 @@ from moviad.utilities.configurations import Split
 
 import json
 
+class VisaAnomalyClass(Enum):
+    """
+    Enum class for anomaly
+    detection data sources
+    """
+    ANOMALY = "anomaly"
+    NORMAL = "normal"
+
 @dataclass
 class VisaImageData:
     category: VisaDatasetCategory
@@ -23,13 +32,14 @@ class VisaImageData:
 class DatasetImageEntry:
     image: Image
     mask: Image
+    label: VisaAnomalyClass
+    image_path: Path
 
 @dataclass
 class VisaData:
     meta: DataFrame
     data: List[VisaImageData]
     images: List[DatasetImageEntry] = None
-    class_name: VisaDatasetCategory = None
 
     def load_images(self, img_root_dir: str) -> None:
         self.images = []
@@ -37,24 +47,22 @@ class VisaData:
         mask = None
         images_not_found = []
         masks_not_found = []
-
-        for image_entry in self.data:
-            class_image_root_path = os.path.join(img_root_dir, self.class_name.value)
-            img_path = Path(os.path.join(class_image_root_path, image_entry.image_path))
+        for index, row in self.meta.iterrows():
+            img_path = Path(os.path.join(img_root_dir, row['image']))
             if not os.path.exists(img_path):
                 images_not_found.append(img_path)
                 continue
             image = Image.open(img_path).convert("RGB")
+            label = VisaAnomalyClass(row['label'])
 
-            if image_entry.mask_path is not None:
-                image_mask_path = Path(os.path.join(class_image_root_path, image_entry.mask_path))
+            if row['label'] != VisaAnomalyClass.NORMAL.value:
+                image_mask_path = Path(os.path.join(img_root_dir, row['mask']))
                 if not os.path.exists(image_mask_path):
                     masks_not_found.append(image_mask_path)
                     continue
                 mask = Image.open(image_mask_path).convert("L")
 
-            self.images.append(DatasetImageEntry(image=image, mask=mask))
-
+            self.images.append(DatasetImageEntry(image=image, mask=mask, label=label, image_path=img_path))
 
         if len(images_not_found) == self.data.__len__():
             raise ValueError("No images found in the dataset. Check root directory or image paths.")

@@ -1,9 +1,12 @@
+from typing import Optional
+
 import pandas as pd
+import torch
 from torch.utils.data import Dataset
 
-from moviad.datasets.visa.visa_data import VisaData
+from moviad.datasets.visa.visa_data import VisaData, VisaAnomalyClass
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
-from moviad.utilities.configurations import Split
+from moviad.utilities.configurations import Split, LabelName
 
 
 class VisaDataset(Dataset):
@@ -14,16 +17,44 @@ class VisaDataset(Dataset):
     data: VisaData
     transform: None
 
-    def __init__(self, root_path: str, csv_path: str, split: Split, category: VisaDatasetCategory):
+    def __init__(self, root_path: str, csv_path: str, split: Split, category: VisaDatasetCategory,
+                 gt_mask_size: Optional[tuple] = None, transform=None):
         self.root_path = root_path
         self.csv_path = csv_path
         self.split = split
+        self.transform = transform
         self.category = category
+        self.gt_mask_size = gt_mask_size
         self.dataframe = pd.read_csv(csv_path)
         self.dataframe = self.dataframe[self.dataframe["split"] == split.value]
+        self.dataframe = self.dataframe[self.dataframe["object"] == category.value]
+        self.__load__()
+
+    def __load__(self):
+        self.data = VisaData(meta=self.dataframe, data=self.dataframe)
+        self.data.load_images(self.root_path)
 
     def __len__(self):
         return len(self.dataframe)
 
     def __getitem__(self, item):
-        pass
+        image_data_entry = self.data.images[item]
+        image = image_data_entry.image
+        mask = image_data_entry.mask
+
+        if self.split == Split.TRAIN:
+            if self.transform:
+                image = self.transform(image)
+            return image
+
+        if self.split == Split.TEST:
+            label = LabelName.NORMAL.value if image_data_entry.label == VisaAnomalyClass.NORMAL else LabelName.ABNORMAL.value
+            path = str(image_data_entry.image_path)
+            if mask is not None:
+                mask = self.transform(mask)
+            else:
+                mask = torch.zeros(1, *self.gt_mask_size, dtype=torch.float32)
+            if self.transform:
+                image = self.transform(image)
+
+            return image, label, mask, path
