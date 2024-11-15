@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Optional, List
 
 import PIL.Image as Image
+import numpy as np
+from PIL import ImageEnhance
 from pandas.core.interchange.dataframe_protocol import DataFrame
 
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass
@@ -12,6 +14,9 @@ from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import Split
 
 import json
+
+from moviad.utilities.pil_image_utils import min_max_scale_image
+
 
 class VisaAnomalyClass(Enum):
     """
@@ -61,6 +66,7 @@ class VisaData:
                     masks_not_found.append(image_mask_path)
                     continue
                 mask = Image.open(image_mask_path).convert("L")
+                mask = min_max_scale_image(mask, output_dtype=np.uint8)
 
             self.images.append(DatasetImageEntry(image=image, mask=mask, label=label, image_path=img_path))
 

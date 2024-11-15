@@ -62,7 +62,7 @@ class Padim(nn.Module):
         "gauss_mean",
         "gauss_cov",
         "diag_cov",
-        "layers",
+        "layers_idxs",
     ]
 
     def __init__(
@@ -70,7 +70,7 @@ class Padim(nn.Module):
         backbone_model_name,
         class_name,
         device,
-        layers_idxs: tuple,
+        layers_idxs: list,
         diag_cov=False,
     ):
         """
@@ -87,9 +87,14 @@ class Padim(nn.Module):
         self.diag_cov = diag_cov
         # feature extractor backbone model
         self.backbone_model_name = backbone_model_name
-        self.layers_idxs = idx_to_layer_name(
-            backbone_model_name, layers_idxs
-        )  # feature extraction layers
+        self.layers_idxs = layers_idxs
+
+
+        # self.layers_idxs = idx_to_layer_name(
+        #     backbone_model_name, layers_idxs
+        # )  # feature extraction layers
+
+
         self.load_backbone()
         # dimensionality reduction: random projection
         random_dims = torch.tensor(sample(range(0, self.t_d), self.d))
@@ -228,7 +233,7 @@ class Padim(nn.Module):
         """
         backbone = CustomFeatureExtractor(
             model_name=self.backbone_model_name,
-            layers_idx=list(self.layers_idxs),
+            layers_idx=self.layers_idxs,
             device=self.device,
             frozen=True,
         )

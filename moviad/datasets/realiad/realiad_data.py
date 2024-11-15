@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List
-
+import numpy as np
 import PIL.Image as Image
 
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass

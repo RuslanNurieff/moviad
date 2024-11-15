@@ -23,7 +23,6 @@ class PadimTrainer:
     def train(self, train_dataloader):
         print(f"Train Padim. Backbone: {self.model.backbone_model_name}")
 
-
         self.model.train()
 
         # 1. get the feature maps from the backbone

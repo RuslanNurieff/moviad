@@ -3,11 +3,14 @@
 import unittest
 
 import torch
+from PIL import ImageEnhance
+from torch.onnx.symbolic_opset9 import tensor
 from torchvision.transforms import transforms
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClass
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import TaskType, Split
+from moviad.utilities.pil_image_utils import IncreaseContrast
 from tests.main.patchcore_tests import transform
 
 VISA_DATASET_PATH = 'E:/VisualAnomalyDetection/datasets/visa'
@@ -59,15 +62,30 @@ class VisaTestDatasetTests(unittest.TestCase):
     def setUp(self):
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
+            IncreaseContrast(1.5),
             transforms.PILToTensor(),
             transforms.ConvertImageDtype(torch.float32),
         ])
 
         self.dataset = VisaDataset(VISA_DATASET_PATH,
                                    VISA_DATASET_CSV_PATH,
-                                   Split.TEST, VisaDatasetCategory.candle,
+                                   Split.TEST, VisaDatasetCategory.pipe_fryum,
                                    gt_mask_size=IMAGE_SIZE,
                                    transform=self.transform)
+
+    def test_check_all_mask_are_not_none(self):
+        masks = [image_entry.mask for image_entry in self.dataset.data.images]
+        transform = transforms.Compose([
+            transforms.Resize(IMAGE_SIZE),
+            IncreaseContrast(3.5),
+            transforms.PILToTensor(),
+        ])
+        masks = [mask for mask in masks if mask is not None]
+        enhancer = ImageEnhance.Contrast(masks[0])
+        masks[0] = enhancer.enhance(1.5)
+        masks[0].show()
+        mask_tensors = [ transform(mask) for mask in masks if mask is not None]
+        assert not torch.any(sum(mask_tensors)), "The tensor is all zeros"
 
 
     def test_dataset_is_not_none(self):
