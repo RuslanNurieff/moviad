@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from sklearn.model_selection import train_test_split
 
+from ..datasets.common import IadDataset
 from ..models.stfpm.stfpm import Stfpm
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from ..utilities.configurations import TaskType, Split
@@ -155,7 +156,7 @@ def train_model(
     return logs_df, save_path
 
 
-def train_param_grid_step(
+def train_param_grid_step(train_dataset: IadDataset,
     config,
     batch_size,
     backbone_model_name,
@@ -183,14 +184,9 @@ def train_param_grid_step(
 
     start_time = time.time()
 
-    train_dataset = MVTecDataset(
-        TaskType.SEGMENTATION,
-        dataset_path,
-        category,
-        Split.TRAIN,
-        img_size=img_input_size,
-        norm=normalize_dataset,
-    )
+    train_dataset.set_category(category)
+    train_dataset.load_dataset()
+
     train_dataset, val_dataset = train_test_split(
         train_dataset, test_size=0.2, random_state=seed
     )
@@ -281,6 +277,7 @@ def train_param_grid_search(params=default_params):
                         "log_dirpath": params["log_dirpath"],
                     }
                     log, snapshot_path = train_param_grid_step(
+                        params["train_dataset"],
                         config,
                         params["batch_size"],
                         params["backbone_model_name"],

@@ -4,30 +4,37 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
+from moviad.datasets.common import IadDataset
 from moviad.datasets.visa.visa_data import VisaData, VisaAnomalyClass
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import Split, LabelName
 
 
-class VisaDataset(Dataset):
+class VisaDataset(IadDataset):
     root_path: str
     csv_path: str
     split: Split
-    category: VisaDatasetCategory
+    class_name: VisaDatasetCategory
     data: VisaData
     transform: None
 
-    def __init__(self, root_path: str, csv_path: str, split: Split, category: VisaDatasetCategory,
+    def __init__(self, root_path: str, csv_path: str, split: Split, class_name: VisaDatasetCategory,
                  gt_mask_size: Optional[tuple] = None, transform=None):
         self.root_path = root_path
         self.csv_path = csv_path
         self.split = split
         self.transform = transform
-        self.category = category
+        self.class_name = class_name
         self.gt_mask_size = gt_mask_size
         self.dataframe = pd.read_csv(csv_path)
         self.dataframe = self.dataframe[self.dataframe["split"] == split.value]
-        self.dataframe = self.dataframe[self.dataframe["object"] == category.value]
+        self.dataframe = self.dataframe[self.dataframe["object"] == class_name.value]
+        self.category = class_name.value
+
+    def set_category(self, category: str):
+        self.category = category
+
+    def load_dataset(self):
         self.__load__()
 
     def __load__(self):

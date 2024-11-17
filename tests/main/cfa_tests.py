@@ -30,7 +30,7 @@ class CfaTrainTests(unittest.TestCase):
         train_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.category,
+            self.args.class_name,
             Split.TRAIN,
             img_size=(256, 256),
         )
@@ -38,12 +38,12 @@ class CfaTrainTests(unittest.TestCase):
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.category,
+            self.args.class_name,
             Split.TEST,
             img_size=(256, 256),
         )
 
-        train_cfa_v2(train_dataset, test_dataset, self.args.category, self.args.backbone,
+        train_cfa_v2(train_dataset, test_dataset, self.args.class_name, self.args.backbone,
                      self.args.ad_layers,
                      self.args.epochs,
                      self.args.save_path, self.args.device)
@@ -106,12 +106,12 @@ class CfaInferenceTests(unittest.TestCase):
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.category,
+            self.args.class_name,
             Split.TEST,
             img_size=(256, 256),
         )
 
-        test_cfa_v2(test_dataset, self.args.category, self.args.backbone,
+        test_cfa_v2(test_dataset, self.args.class_name, self.args.backbone,
                     self.args.ad_layers,
                     self.args.model_checkpoint_path,
                     self.args.device)

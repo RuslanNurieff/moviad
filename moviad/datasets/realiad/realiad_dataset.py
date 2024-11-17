@@ -11,12 +11,13 @@ import os
 from torch.utils.data import Dataset
 from pathlib import Path
 
+from moviad.datasets.common import IadDataset
 from moviad.datasets.realiad.realiad_data import RealIadData
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass
 from moviad.utilities.configurations import TaskType, Split, LabelName
 
 
-class RealIadDataset(Dataset):
+class RealIadDataset(IadDataset):
     def __init__(self, class_name: RealIadClass, img_root_dir: str, json_path: str, task: TaskType, split: Split,
                  gt_mask_size: Optional[tuple] = None,
                  transform=None,
@@ -36,7 +37,6 @@ class RealIadDataset(Dataset):
         self.task = task
         self.split = split
         self.gt_mask_size = gt_mask_size
-        self.load_dataset()
 
     def load_dataset(self) -> None:
         self.data = RealIadData.from_json(self.json, self.class_name, self.split)

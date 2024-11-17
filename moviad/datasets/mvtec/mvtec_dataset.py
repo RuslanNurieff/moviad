@@ -11,6 +11,7 @@ import torch
 from torchvision.transforms import transforms
 from torch.utils.data import Dataset
 
+from moviad.datasets.common import IadDataset
 from moviad.utilities.configurations import TaskType, Split, LabelName
 
 IMG_EXTENSIONS = (".png", ".PNG")
@@ -45,7 +46,7 @@ IMG_SIZE = (3, 900, 900)
 """
 
 
-class MVTecDataset(Dataset):
+class MVTecDataset(IadDataset):
     """MVTec dataset class.
 
     Args:
@@ -111,8 +112,6 @@ class MVTecDataset(Dataset):
                 ),
             ]
         )
-
-        self.load_dataset()
 
     def load_dataset(self):
 

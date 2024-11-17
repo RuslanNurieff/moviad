@@ -40,7 +40,7 @@ class PadimTrainTests(unittest.TestCase):
         train_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.category,
+            self.args.class_name,
             Split.TRAIN,
             img_size=(256, 256),
         )
@@ -48,13 +48,13 @@ class PadimTrainTests(unittest.TestCase):
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.category,
+            self.args.class_name,
             Split.TEST,
             img_size=(256, 256),
         )
 
-        train_padim(train_dataset, test_dataset, self.args.category, self.args.backbone,
-                     self.args.ad_layers, self.args.device, self.args.model_checkpoint_path)
+        train_padim(train_dataset, test_dataset, self.args.class_name, self.args.backbone,
+                    self.args.ad_layers, self.args.device, self.args.model_checkpoint_path)
 
     def test_padim_train_with_realiad_dataset(self):
         self.args.dataset_path = REALIAD_DATASET_PATH
@@ -120,14 +120,14 @@ class PadimInferenceTests(unittest.TestCase):
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.category,
+            self.args.class_name,
             Split.TEST,
             img_size=(256, 256),
         )
 
-        test_padim(test_dataset, self.args.category, self.args.backbone,
-                    self.args.ad_layers,
-                    self.args.device, self.args.model_checkpoint_path)
+        test_padim(test_dataset, self.args.class_name, self.args.backbone,
+                   self.args.ad_layers,
+                   self.args.device, self.args.model_checkpoint_path)
 
     def test_cfa_inference_with_realiad_dataset(self):
         transform = transforms.Compose([
