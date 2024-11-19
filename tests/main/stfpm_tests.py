@@ -11,16 +11,17 @@ from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
-from moviad.entrypoints.stfpm import train_stfpm
+from moviad.entrypoints.stfpm import train_stfpm, test_stfpm, visualize_stfpm
 from moviad.utilities.configurations import TaskType, Split
 from tests.datasets.realiaddataset_tests import IMAGE_SIZE, REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON
 from tests.datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
-from tests.main.common import get_training_args, MVTECH_DATASET_PATH, REALIAD_DATASET_PATH, get_stfpm_args
+from tests.main.common import get_training_args, MVTECH_DATASET_PATH, REALIAD_DATASET_PATH, get_stfpm_train_args, \
+    get_stfpm_test_args
 
 
 class StfpmTrainTests(unittest.TestCase):
     def setUp(self):
-        self.args = get_stfpm_args()
+        self.args = get_stfpm_train_args()
 
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
@@ -81,8 +82,9 @@ class StfpmTrainTests(unittest.TestCase):
 
 class StfpmInferenceTests(unittest.TestCase):
     def setUp(self):
-        self.args = get_training_args()
+        self.args = get_stfpm_test_args()
         self.args.model_checkpoint_path = '.'
+        self.args.model_name = 'mobilenet_v2'
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor(),
@@ -91,17 +93,22 @@ class StfpmInferenceTests(unittest.TestCase):
 
     def test_cfa_inference_with_mvtec_dataset(self):
         self.args.dataset_path = MVTECH_DATASET_PATH
+        self.args.categories = ['pill']
+        self.args.class_name = 'pill'
+        self.args.feature_maps_dir = '.'
+        self.args.input_size = (224, 224)
+        self.args.output_size = (224, 224)
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
             self.args.class_name,
             Split.TEST,
-            img_size=(256, 256),
+            img_size=(224, 224),
         )
-
-        test_Stfpm(test_dataset, self.args.class_name, self.args.backbone,
-                   self.args.ad_layers,
-                   self.args.device, self.args.model_checkpoint_path)
+        test_dataset.load_dataset()
+        self.args.test_dataset = test_dataset
+        test_stfpm(self.args)
+        visualize_stfpm(self.args)
 
     def test_cfa_inference_with_realiad_dataset(self):
         transform = transforms.Compose([
@@ -109,33 +116,41 @@ class StfpmInferenceTests(unittest.TestCase):
             transforms.PILToTensor(),
             transforms.ConvertImageDtype(torch.float32),
         ])
-
-        test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
-                                      REAL_IAD_DATASET_PATH,
+        self.args.dataset_path = REALIAD_DATASET_PATH
+        self.args.class_name = RealIadClass.AUDIOJACK
+        self.args.categories = [RealIadClass.AUDIOJACK]
+        self.args.feature_maps_dir = '.'
+        self.args.input_size = (224, 224)
+        self.args.output_size = (224, 224)
+        test_dataset = RealIadDataset(self.args.class_name,
+                                      self.args.dataset_path,
                                       AUDIO_JACK_DATASET_JSON,
                                       task=TaskType.SEGMENTATION,
                                       split=Split.TEST,
-                                      image_size=IMAGE_SIZE,
-                                      gt_mask_size=IMAGE_SIZE,
+                                      image_size=self.args.input_size,
+                                      gt_mask_size=self.args.output_size,
                                       transform=transform)
-
-        test_Stfpm(test_dataset, 'audiojack', self.args.backbone,
-                    self.args.ad_layers,
-                    self.args.device, self.args.model_checkpoint_path)
+        test_dataset.load_dataset()
+        self.args.test_dataset = test_dataset
+        test_stfpm(self.args)
+        visualize_stfpm(self.args)
 
     def test_Stfpm_inference_with_visa_dataset(self):
         self.args.dataset_path = VISA_DATASET_PATH
+        self.args.class_name = 'candle'
+        self.args.input_size = (224, 224)
+        self.args.output_size = (224, 224)
 
-
-        test_dataset = VisaDataset(VISA_DATASET_PATH,
+        test_dataset = VisaDataset(self.args.dataset_path,
                                    VISA_DATASET_CSV_PATH,
-                                   Split.TEST, VisaDatasetCategory.candle,
-                                   gt_mask_size=IMAGE_SIZE,
+                                   Split.TEST,
+                                   VisaDatasetCategory.candle,
+                                   gt_mask_size=self.args.input_size,
                                    transform=self.transform)
+        test_dataset.load_dataset()
+        self.args.test_dataset = test_dataset
 
-        test_Stfpm(test_dataset, 'candle', self.args.backbone,
-                    self.args.ad_layers,
-                    self.args.device,  self.args.model_checkpoint_path)
+        test_stfpm(self.args)
 
 
 if __name__ == '__main__':

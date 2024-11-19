@@ -28,6 +28,25 @@ INPUT_SIZES = {
         "micronet-m1": (224, 224),
     }
 
+class StfpmTestParams:
+    feature_maps_dir = None
+    boot_layer = None
+    categories: list[str] = None
+    model_name: str = None
+
+    input_size: int = None
+    ad_model: str = None
+    output_size: tuple = None
+    device: torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    batch_size: int = 32
+    test_dataset: torch.utils.data.Dataset = None
+    input_sizes: dict = INPUT_SIZES
+    results_dirpath: str = './results'
+    checkpoint_dir: str = './checkpoints'
+    trained_models_filepaths: list = None
+    class_name: str = None
+
+
 class StfpmTrainingParams:
     def __init__(self, train_dataset, categories, ad_layers, epochs: int, seeds: list[int], batch_size: int, model_name: str, results_dirpath, device,
                  input_sizes, output_size, checkpoint_dir, dataset_path, disable_dataset_norm, log_dirpath,
@@ -75,7 +94,10 @@ class TrainingArguments:
     seed: int
     model_checkpoint_path: str = None
 
-def get_stfpm_args():
+def get_stfpm_test_args():
+    return StfpmTestParams()
+
+def get_stfpm_train_args():
     return StfpmTrainingParams(
         train_dataset=None,
         categories=['pill'],
