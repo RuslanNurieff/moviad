@@ -38,9 +38,40 @@ class RealIadDataset(IadDataset):
         self.split = split
         self.gt_mask_size = gt_mask_size
 
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
+        if not isinstance(source, RealIadDataset):
+            raise ValueError("Dataset should be of type RealIadDataset")
+        if self.data is None or self.data.data is None:
+            raise ValueError("Destination dataset is not loaded")
+        if source.data is None or source.data.data is None:
+            raise ValueError("Source dataset is not loaded")
+        
+        torch.manual_seed(seed)
+        contamination_set_size = int(len(self.data) * ratio)
+
+        while contamination_set_size > 0:
+            index = torch.randint(0, len(source), (1,)).item()
+            entry = source.data.data[index]
+            if entry.anomaly_class == RealIadAnomalyClass.OK:
+                continue
+            if self.data.data.__contains__(entry):
+                continue
+            self.data.data.append(entry)
+            source.data.data.remove(entry)
+            contamination_set_size -= 1
+
+    def partition(self, dataset: IadDataset, ratio: float) -> ('RealIadDataset', 'RealIadDataset'):
+        if not isinstance(dataset, RealIadDataset):
+            raise ValueError("Dataset should be of type RealIadDataset")
+        split_1, split_2 = self.data.partition(ratio)
+        dataset_1 = self
+        dataset_2 = self
+        dataset_1.data = split_1
+        dataset_2.data = split_2
+        return dataset_1, dataset_2
+
     def load_dataset(self) -> None:
         self.data = RealIadData.from_json(self.json, self.class_name, self.split)
-
         if self.data is None:
             raise ValueError("Dataset is None")
 

@@ -27,10 +27,11 @@ class CfaTrainTests(unittest.TestCase):
 
     def test_cfa_train_with_mvtec_dataset(self):
         self.args.dataset_path = MVTECH_DATASET_PATH
+        self.args.category = 'pill'
         train_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.class_name,
+            self.args.category,
             Split.TRAIN,
             img_size=(256, 256),
         )
@@ -38,12 +39,15 @@ class CfaTrainTests(unittest.TestCase):
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
-            self.args.class_name,
+            self.args.category,
             Split.TEST,
             img_size=(256, 256),
         )
 
-        train_cfa_v2(train_dataset, test_dataset, self.args.class_name, self.args.backbone,
+        train_dataset.load_dataset()
+        test_dataset.load_dataset()
+
+        train_cfa_v2(train_dataset, test_dataset, self.args.category, self.args.backbone,
                      self.args.ad_layers,
                      self.args.epochs,
                      self.args.save_path, self.args.device)

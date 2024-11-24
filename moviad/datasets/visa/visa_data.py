@@ -46,7 +46,7 @@ class VisaData:
     data: List[VisaImageData]
     images: List[DatasetImageEntry] = None
 
-    def load_images(self, img_root_dir: str) -> None:
+    def load_images(self, img_root_dir: str, split: Split) -> None:
         self.images = []
         image = None
         mask = None
@@ -59,6 +59,8 @@ class VisaData:
                 continue
             image = Image.open(img_path).convert("RGB")
             label = VisaAnomalyClass(row['label'])
+            if split == Split.TRAIN and label == VisaAnomalyClass.ANOMALY:
+                continue
 
             if row['label'] != VisaAnomalyClass.NORMAL.value:
                 image_mask_path = Path(os.path.join(img_root_dir, row['mask']))

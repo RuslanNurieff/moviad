@@ -18,3 +18,11 @@ class IadDataset(Dataset):
     @abstractmethod
     def load_dataset(self):
         pass
+
+    @abstractmethod
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
+        pass
+
+    @abstractmethod
+    def partition(self, dataset: 'IadDataset', ratio: float) -> 'IadDataset':
+        pass

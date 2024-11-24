@@ -37,18 +37,40 @@ class RealIadData:
     images: List[DatasetImageEntry] = None
     class_name: RealIadClass = None
 
+
     @staticmethod
     def from_json(json_path: str, class_name: RealIadClass, split: Split) -> 'RealIadData':
         with open(json_path, 'r') as f:
             data = json.load(f)
 
         meta = MetaData(**data["meta"])
-        train_data = [
+        data = [
             ImageData(category=RealIadClass(item["category"]), anomaly_class=RealIadAnomalyClass(item["anomaly_class"]),
                       image_path=item["image_path"], mask_path=item.get("mask_path")) for item in data[split.value]]
+
+        data = [item for item in data if item.category == class_name]
+
         return RealIadData(meta=meta,
-                           data=train_data,
+                           data=data,
                            class_name=class_name)
+    
+    def partition(self, ratio) -> ('RealIadData', 'RealIadData'):
+        split_index = int(len(self.data) * ratio)
+        split_1 =  RealIadData(meta=self.meta,
+                           data=self.data[:split_index],
+                           class_name=self.class_name)
+        split_2 = RealIadData(meta=self.meta,
+                            data=self.data[split_index:],
+                            class_name=self.class_name)
+
+        return split_1, split_2
+
+    def partition_diff(self, partition: 'RealIadData') -> 'RealIadData':
+        data = [item for item in self.data if item not in partition.data]
+        return RealIadData(meta=self.meta,
+                           data=data,
+                           class_name=self.class_name)
+
 
     def load_images(self, img_root_dir: str) -> None:
         self.images = []

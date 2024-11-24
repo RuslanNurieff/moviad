@@ -3,8 +3,10 @@
 import unittest
 
 import torch
+from sympy import false
 from torchvision.transforms import transforms
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadAnomalyClass
 from moviad.utilities.configurations import TaskType, Split
 
 REAL_IAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'
@@ -79,42 +81,54 @@ class RealIadTestDatasetTests(unittest.TestCase):
             transforms.ConvertImageDtype(torch.float32),
         ])
 
-        self.dataset = RealIadDataset(RealIadClass.AUDIOJACK,
-                                      REAL_IAD_DATASET_PATH,
-                                      AUDIO_JACK_DATASET_JSON,
-                                      task=TaskType.SEGMENTATION,
-                                      split=Split.TEST,
-                                      image_size=IMAGE_SIZE,
-                                      gt_mask_size=IMAGE_SIZE,
-                                      transform=self.transform)
-        self.dataset.load_dataset()
+        self.train_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+                                            REAL_IAD_DATASET_PATH,
+                                            AUDIO_JACK_DATASET_JSON,
+                                            task=TaskType.SEGMENTATION,
+                                            split=Split.TRAIN,
+                                            image_size=IMAGE_SIZE,
+                                            gt_mask_size=IMAGE_SIZE,
+                                            transform=self.transform)
+        self.train_dataset.load_dataset()
+
+        self.test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+                                        REAL_IAD_DATASET_PATH,
+                                        AUDIO_JACK_DATASET_JSON,
+                                        task=TaskType.SEGMENTATION,
+                                        split=Split.TEST,
+                                        image_size=IMAGE_SIZE,
+                                        gt_mask_size=IMAGE_SIZE,
+                                        transform=self.transform)
+        self.test_dataset.load_dataset()
+
+
 
     def test_dataset_is_not_none(self):
-        self.assertIsNotNone(self.dataset)
+        self.assertIsNotNone(self.train_dataset)
 
     def test_dataset_should_return_dataset_length(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.data)
-        self.assertIsNotNone(self.dataset.__len__())
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.data)
+        self.assertIsNotNone(self.train_dataset.__len__())
 
     def test_dataset_should_serialize_json(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.data)
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.data)
 
     def test_dataset_should_index_images_and_labels(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.data)
-        self.assertIsNotNone(self.dataset.data)
-        self.assertEqual(len(self.dataset.data), len(self.dataset.data.data))
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.data)
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertEqual(len(self.train_dataset.data), len(self.train_dataset.data.data))
 
     def test_dataset_should_get_item(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.data)
-        image, label, mask, path = self.dataset.__getitem__(0)
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.data)
+        image, label, mask, path = self.train_dataset.__getitem__(0)
         self.assertIsNotNone(image)
         self.assertIs(type(image), torch.Tensor)
         self.assertEqual(image.dtype, torch.float32)
@@ -126,6 +140,28 @@ class RealIadTestDatasetTests(unittest.TestCase):
         self.assertEqual(mask.dtype, torch.float32)
         self.assertIsNotNone(path)
         self.assertIs(type(path), str)
+
+    def test_training_dataset_should_not_contain_anoamlies(self):
+        for item in self.train_dataset.data.data:
+            self.assertEqual(item.anomaly_class, RealIadAnomalyClass.OK)
+
+
+    def test_test_dataset_should_contain_anoamlies(self):
+        contains_anomalies = False
+        for item in self.test_dataset.data.data:
+            if item.anomaly_class != RealIadAnomalyClass.OK:
+                contains_anomalies = True
+                break
+        self.assertTrue(contains_anomalies)
+
+    def test_dataset_is_contaminated(self):
+        self.train_dataset.contaminate(self.test_dataset, 0.1)
+        contains_anomalies = False
+        for item in self.train_dataset.data.data:
+            if item.anomaly_class != RealIadAnomalyClass.OK:
+                contains_anomalies = True
+                break
+        self.assertTrue(contains_anomalies)
 
 
 if __name__ == '__main__':

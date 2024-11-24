@@ -102,6 +102,9 @@ class Evaluator:
         """Pixel-level AU-PRO"""
         au_pro_pxl = cal_pro_auc_pxl(np.squeeze(pred_masks, axis=1), gt_masks_list)
 
+        # TODO: Implement Add False-alarm rate
+
+
         return (
             img_roc_auc,
             per_pixel_rocauc,

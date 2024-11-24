@@ -210,6 +210,8 @@ class MVTecDataset(IadDataset):
             )
 
         if self.split == Split.TRAIN:
+            if (self.samples.iloc[index].label_index == LabelName.ABNORMAL):
+                print("Info: abnormal images loaded.")
             return image
         else:
             # return also the label, the mask and the path

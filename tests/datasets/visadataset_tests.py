@@ -7,6 +7,8 @@ from PIL import ImageEnhance
 from torch.onnx.symbolic_opset9 import tensor
 from torchvision.transforms import transforms
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadAnomalyClass
+from moviad.datasets.visa.visa_data import VisaAnomalyClass
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import TaskType, Split
@@ -58,7 +60,7 @@ class VisaTrainDatasetTests(unittest.TestCase):
         self.assertEqual(image.shape, torch.Size([3, IMAGE_SIZE[0], IMAGE_SIZE[1]]))
 
 
-class VisaTestDatasetTests(unittest.TestCase):
+class VisaDatasetTests(unittest.TestCase):
     def setUp(self):
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
@@ -67,14 +69,22 @@ class VisaTestDatasetTests(unittest.TestCase):
             transforms.ConvertImageDtype(torch.float32),
         ])
 
-        self.dataset = VisaDataset(VISA_DATASET_PATH,
-                                   VISA_DATASET_CSV_PATH,
-                                   Split.TEST, VisaDatasetCategory.pipe_fryum,
-                                   gt_mask_size=IMAGE_SIZE,
-                                   transform=self.transform)
+        self.train_dataset = VisaDataset(VISA_DATASET_PATH,
+                                         VISA_DATASET_CSV_PATH,
+                                         Split.TRAIN, VisaDatasetCategory.pipe_fryum,
+                                         gt_mask_size=IMAGE_SIZE,
+                                         transform=self.transform)
+
+        self.train_dataset.load_dataset()
+        self.test_dataset = VisaDataset(VISA_DATASET_PATH,
+                                        VISA_DATASET_CSV_PATH,
+                                        Split.TEST, VisaDatasetCategory.pipe_fryum,
+                                        gt_mask_size=IMAGE_SIZE,
+                                        transform=self.transform)
+        self.test_dataset.load_dataset()
 
     def test_check_all_mask_are_not_none(self):
-        masks = [image_entry.mask for image_entry in self.dataset.data.images]
+        masks = [image_entry.mask for image_entry in self.train_dataset.data.images]
         transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             IncreaseContrast(3.5),
@@ -84,36 +94,35 @@ class VisaTestDatasetTests(unittest.TestCase):
         enhancer = ImageEnhance.Contrast(masks[0])
         masks[0] = enhancer.enhance(1.5)
         masks[0].show()
-        mask_tensors = [ transform(mask) for mask in masks if mask is not None]
+        mask_tensors = [transform(mask) for mask in masks if mask is not None]
         assert not torch.any(sum(mask_tensors)), "The tensor is all zeros"
 
-
     def test_dataset_is_not_none(self):
-        self.assertIsNotNone(self.dataset)
+        self.assertIsNotNone(self.train_dataset)
 
     def test_dataset_should_return_dataset_length(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.data)
-        self.assertIsNotNone(self.dataset.__len__())
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.data)
+        self.assertIsNotNone(self.train_dataset.__len__())
 
     def test_dataset_should_serialize_json(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.data)
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.data)
 
     def test_dataset_should_index_images_and_labels(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.data)
-        self.assertIsNotNone(self.dataset.data)
-        self.assertEqual(len(self.dataset.data), len(self.dataset.data.data))
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.data)
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertEqual(len(self.train_dataset.data), len(self.train_dataset.data.data))
 
     def test_dataset_should_get_item(self):
-        self.assertIsNotNone(self.dataset.data)
-        self.assertIsNotNone(self.dataset.data.meta)
-        self.assertIsNotNone(self.dataset.data.images)
-        image, label, mask, path = self.dataset.__getitem__(0)
+        self.assertIsNotNone(self.train_dataset.data)
+        self.assertIsNotNone(self.train_dataset.data.meta)
+        self.assertIsNotNone(self.train_dataset.data.images)
+        image, label, mask, path = self.train_dataset.__getitem__(0)
         self.assertIsNotNone(image)
         self.assertIs(type(image), torch.Tensor)
         self.assertEqual(image.dtype, torch.float32)
@@ -125,6 +134,27 @@ class VisaTestDatasetTests(unittest.TestCase):
         self.assertEqual(mask.dtype, torch.float32)
         self.assertIsNotNone(path)
         self.assertIs(type(path), str)
+
+    def test_training_dataset_should_not_contain_anoamlies(self):
+        for item in self.train_dataset.data.images:
+            self.assertEqual(item.label, VisaAnomalyClass.NORMAL)
+
+    def test_test_dataset_should_contain_anoamlies(self):
+        contains_anomalies = False
+        for item in self.test_dataset.data.images:
+            if item.label != VisaAnomalyClass.NORMAL:
+                contains_anomalies = True
+                break
+        self.assertTrue(contains_anomalies)
+
+    def test_training_dataset_is_contaminated(self):
+        self.train_dataset.contaminate(self.test_dataset, 0.1)
+        contains_anomalies = False
+        for item in self.test_dataset.data.images:
+            if item.label != VisaAnomalyClass.NORMAL:
+                contains_anomalies = True
+                break
+        self.assertTrue(contains_anomalies)
 
 
 if __name__ == '__main__':

@@ -45,6 +45,7 @@ class PadimTrainTests(unittest.TestCase):
             img_size=(256, 256),
         )
 
+
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.args.dataset_path,
@@ -52,6 +53,7 @@ class PadimTrainTests(unittest.TestCase):
             Split.TEST,
             img_size=(256, 256),
         )
+
 
         train_padim(train_dataset, test_dataset, self.args.class_name, self.args.backbone,
                     self.args.ad_layers, self.args.device, self.args.model_checkpoint_path)

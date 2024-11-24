@@ -37,9 +37,31 @@ class VisaDataset(IadDataset):
     def load_dataset(self):
         self.__load__()
 
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
+        if not isinstance(source, VisaDataset):
+            raise ValueError("Dataset should be of type VisaDataset")
+        if self.data is None or self.data.data is None:
+            raise ValueError("Destination dataset is not loaded")
+        if source.data is None or source.data.data is None:
+            raise ValueError("Source dataset is not loaded")
+
+        torch.manual_seed(seed)
+        contamination_set_size = int(len(self.data) * ratio)
+        while contamination_set_size > 0:
+            index = torch.randint(0, len(source.data.images), (1,)).item()
+            entry = source.data.images[index]
+            if entry.label == VisaAnomalyClass.NORMAL:
+                continue
+            if self.data.images.__contains__(entry):
+                continue
+            self.data.images.append(entry)
+            source.data.images.remove(entry)
+            contamination_set_size -= 1
+
+
     def __load__(self):
         self.data = VisaData(meta=self.dataframe, data=self.dataframe)
-        self.data.load_images(self.root_path)
+        self.data.load_images(self.root_path, split=self.split)
 
     def __len__(self):
         return len(self.dataframe)
