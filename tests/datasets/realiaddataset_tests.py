@@ -155,6 +155,8 @@ class RealIadTestDatasetTests(unittest.TestCase):
         self.assertTrue(contains_anomalies)
 
     def test_dataset_is_contaminated(self):
+        initial_train_size = self.train_dataset.__len__()
+        initial_test_size = self.test_dataset.__len__()
         self.train_dataset.contaminate(self.test_dataset, 0.1)
         contains_anomalies = False
         for item in self.train_dataset.data.data:
@@ -162,6 +164,8 @@ class RealIadTestDatasetTests(unittest.TestCase):
                 contains_anomalies = True
                 break
         self.assertTrue(contains_anomalies)
+        self.assertGreater(self.train_dataset.__len__(), initial_train_size)
+        self.assertLess(self.test_dataset.__len__(), initial_test_size)
 
 
 if __name__ == '__main__':

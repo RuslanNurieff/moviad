@@ -64,7 +64,7 @@ class VisaDataset(IadDataset):
         self.data.load_images(self.root_path, split=self.split)
 
     def __len__(self):
-        return len(self.dataframe)
+        return len(self.data.images)
 
     def __getitem__(self, item):
         image_data_entry = self.data.images[item]
