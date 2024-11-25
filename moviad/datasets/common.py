@@ -26,3 +26,7 @@ class IadDataset(Dataset):
     @abstractmethod
     def partition(self, dataset: 'IadDataset', ratio: float) -> 'IadDataset':
         pass
+
+    @abstractmethod
+    def contains(self, entry) -> bool:
+        pass

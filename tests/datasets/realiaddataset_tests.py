@@ -101,8 +101,6 @@ class RealIadTestDatasetTests(unittest.TestCase):
                                         transform=self.transform)
         self.test_dataset.load_dataset()
 
-
-
     def test_dataset_is_not_none(self):
         self.assertIsNotNone(self.train_dataset)
 

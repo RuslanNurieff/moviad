@@ -63,15 +63,15 @@ class MVTecDataset(IadDataset):
     """
 
     def __init__(
-        self,
-        task: TaskType,
-        root: str,
-        category: str,
-        split: Split,
-        norm: bool = True,
-        img_size=(224, 224),
-        gt_mask_size: Optional[tuple] = None,
-        preload_imgs: bool = True,
+            self,
+            task: TaskType,
+            root: str,
+            category: str,
+            split: Split,
+            norm: bool = True,
+            img_size=(224, 224),
+            gt_mask_size: Optional[tuple] = None,
+            preload_imgs: bool = True,
     ) -> None:
         super(MVTecDataset)
 
@@ -113,6 +113,9 @@ class MVTecDataset(IadDataset):
             ]
         )
 
+    def contains(self, item) -> bool:
+        return self.samples['image_path'].eq(item['image_path']).any()
+
     def load_dataset(self):
 
         root = Path(self.root_category)
@@ -133,13 +136,13 @@ class MVTecDataset(IadDataset):
 
         # Modify image_path column by converting to absolute path
         samples["image_path"] = (
-            samples.path
-            + "/"
-            + samples.split
-            + "/"
-            + samples.label
-            + "/"
-            + samples.image_path
+                samples.path
+                + "/"
+                + samples.split
+                + "/"
+                + samples.label
+                + "/"
+                + samples.image_path
         )
 
         # Create label index for normal (0) and anomalous (1) images.
@@ -167,10 +170,10 @@ class MVTecDataset(IadDataset):
             # assert that the right mask files are associated with the right test images
             abnormal_samples = samples.loc[samples.label_index == LabelName.ABNORMAL]
             if (
-                len(abnormal_samples)
-                and not abnormal_samples.apply(
-                    lambda x: Path(x.image_path).stem in Path(x.mask_path).stem, axis=1
-                ).all()
+                    len(abnormal_samples)
+                    and not abnormal_samples.apply(
+                lambda x: Path(x.image_path).stem in Path(x.mask_path).stem, axis=1
+            ).all()
             ):
                 msg = """Mismatch between anomalous images and ground truth masks. Make sure t
                 he mask files in 'ground_truth' folder follow the same naming convention as the
@@ -188,6 +191,43 @@ class MVTecDataset(IadDataset):
 
     def __len__(self) -> int:
         return len(self.samples)
+
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
+        if not isinstance(source, MVTecDataset):
+            raise ValueError("Dataset should be of type MVTecDataset")
+        if self.samples is None:
+            raise ValueError("Destination dataset is not loaded")
+        if source.samples is None:
+            raise ValueError("Source dataset is not loaded")
+
+        torch.manual_seed(seed)
+        contamination_set_size = int(len(self.samples) * ratio)
+
+        while contamination_set_size > 0:
+            index = torch.randint(0, len(source.samples), (1,)).item()
+            entry_metadata = source.samples.iloc[index]
+            df_index = source.samples[(source.samples == pd.Series(entry_metadata)).all(axis=1)].index
+            if entry_metadata.label_index == LabelName.NORMAL.value:
+                continue
+
+            if self.contains(entry_metadata):
+                continue
+
+            if source.preload_imgs:
+                entry = source.data[index]
+                self.data.append(entry)
+                source.data = [e for e in source.data if hash(e) != hash(entry)]
+            else:
+                entry = self.transform_image(
+                    Image.open(self.samples.iloc[index].image_path).convert("RGB")
+                )
+                self.data.append(entry)
+                source.data = [e for e in source.data if hash(e) != hash(entry)]
+
+            self.samples = pd.concat([self.samples, pd.DataFrame([entry_metadata])], ignore_index=True)
+            index_label = source.samples.index[index]
+            source.samples.drop(index_label, inplace=True)
+            contamination_set_size -= 1
 
     def __getitem__(self, index: int):
         """
@@ -210,8 +250,6 @@ class MVTecDataset(IadDataset):
             )
 
         if self.split == Split.TRAIN:
-            if (self.samples.iloc[index].label_index == LabelName.ABNORMAL):
-                print("Info: abnormal images loaded.")
             return image
         else:
             # return also the label, the mask and the path
