@@ -1,4 +1,7 @@
+import math
 from typing import Optional
+
+from numpy.ma.core import indices
 from torchvision.transforms.functional import InterpolationMode
 
 from pathlib import Path
@@ -192,7 +195,7 @@ class MVTecDataset(IadDataset):
     def __len__(self) -> int:
         return len(self.samples)
 
-    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
         if not isinstance(source, MVTecDataset):
             raise ValueError("Dataset should be of type MVTecDataset")
         if self.samples is None:
@@ -201,21 +204,22 @@ class MVTecDataset(IadDataset):
             raise ValueError("Source dataset is not loaded")
 
         torch.manual_seed(seed)
-        contamination_set_size = int(len(self.samples) * ratio)
+        contamination_set_size = int(math.floor(len(self.samples) * ratio))
+        contaminated_entries_indices = source.samples[source.samples["label_index"] == LabelName.ABNORMAL.value].index
+        if len(contaminated_entries_indices) < contamination_set_size:
+            raise ValueError(
+                f"Source dataset does not contain enough abnormal entries to contaminate the destination dataset. "
+                f"Source dataset contains {len(contaminated_entries_indices)} abnormal entries, "
+                f"while {contamination_set_size} are required."
+            )
 
-        while contamination_set_size > 0:
-            index = torch.randint(0, len(source.samples), (1,)).item()
+        contaminated_entries_indices = np.random.choice(contaminated_entries_indices, contamination_set_size, replace=False)
+        for index in contaminated_entries_indices:
             entry_metadata = source.samples.iloc[index]
-            df_index = source.samples[(source.samples == pd.Series(entry_metadata)).all(axis=1)].index
-            if entry_metadata.label_index == LabelName.NORMAL.value:
-                continue
-
-            if self.contains(entry_metadata):
-                continue
-
             if source.preload_imgs:
                 entry = source.data[index]
                 self.data.append(entry)
+                print(f"Added {entry_metadata.image_path} to the dataset")
                 source.data = [e for e in source.data if hash(e) != hash(entry)]
             else:
                 entry = self.transform_image(
@@ -226,8 +230,9 @@ class MVTecDataset(IadDataset):
 
             self.samples = pd.concat([self.samples, pd.DataFrame([entry_metadata])], ignore_index=True)
             index_label = source.samples.index[index]
-            source.samples.drop(index_label, inplace=True)
-            contamination_set_size -= 1
+
+        source.samples = source.samples.drop(contaminated_entries_indices).reset_index(drop=True)
+        return contamination_set_size
 
     def __getitem__(self, index: int):
         """

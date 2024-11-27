@@ -20,7 +20,7 @@ class IadDataset(Dataset):
         pass
 
     @abstractmethod
-    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
         pass
 
     @abstractmethod
