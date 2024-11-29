@@ -5,7 +5,7 @@ import torch
 from torchvision.models import MobileNet_V2_Weights
 from torchvision.transforms import transforms, InterpolationMode
 
-from main_scripts.main_cfa import train_cfa, train_cfa_v2, test_cfa_v2
+from main_scripts.main_cfa import main_train_cfa, train_cfa_v2, test_cfa_v2
 from main_scripts.main_padim import train_padim, test_padim
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset

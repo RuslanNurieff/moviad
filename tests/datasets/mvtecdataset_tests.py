@@ -10,7 +10,7 @@ class MvTecDatasetTests(unittest.TestCase):
         self.training_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             MVTECH_DATASET_PATH,
-            'bottle',
+            'pill',
             Split.TRAIN,
             img_size=(256, 256),
         )
@@ -18,7 +18,7 @@ class MvTecDatasetTests(unittest.TestCase):
         self.test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             MVTECH_DATASET_PATH,
-            'bottle',
+            'pill',
             Split.TEST,
             img_size=(256, 256),
         )

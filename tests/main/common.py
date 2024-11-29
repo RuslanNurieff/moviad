@@ -5,7 +5,7 @@ from typing import List
 import torch
 from sympy import false
 
-from main_scripts.main_patchcore import train_patchcore, test_patchcore, train_patchcore_2, test_patchcore_2
+from main_scripts.main_patchcore import train_patchcore, test_patchcore, train_patchcore, test_patchcore
 
 MVTECH_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\mvtec'
 REALIAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'

@@ -7,7 +7,7 @@ from typing import List
 import torch
 from torchvision.transforms import transforms
 
-from main_scripts.main_patchcore import train_patchcore, test_patchcore, train_patchcore_2, test_patchcore_2, \
+from main_scripts.main_patchcore import train_patchcore, test_patchcore, train_patchcore, test_patchcore, \
     train_patchcore, IMAGE_SIZE, REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON, test_patchcore
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset

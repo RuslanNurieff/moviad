@@ -196,7 +196,7 @@ class MVTecDataset(IadDataset):
         return len(self.samples)
 
     def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
-        if not isinstance(source, MVTecDataset):
+        if type(source) == MVTecDataset:
             raise ValueError("Dataset should be of type MVTecDataset")
         if self.samples is None:
             raise ValueError("Destination dataset is not loaded")
@@ -219,8 +219,6 @@ class MVTecDataset(IadDataset):
             if source.preload_imgs:
                 entry = source.data[index]
                 self.data.append(entry)
-                print(f"Added {entry_metadata.image_path} to the dataset")
-                source.data = [e for e in source.data if hash(e) != hash(entry)]
             else:
                 entry = self.transform_image(
                     Image.open(self.samples.iloc[index].image_path).convert("RGB")
@@ -232,6 +230,7 @@ class MVTecDataset(IadDataset):
             index_label = source.samples.index[index]
 
         source.samples = source.samples.drop(contaminated_entries_indices).reset_index(drop=True)
+        source.data = [source.data[i] for i in range(len(source.data)) if i not in contaminated_entries_indices]
         return contamination_set_size
 
     def __getitem__(self, index: int):

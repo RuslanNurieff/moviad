@@ -2,9 +2,9 @@ import unittest
 
 import torch
 from torchvision.models import MobileNet_V2_Weights
-from torchvision.transforms import transforms
+from torchvision.transforms import transforms, InterpolationMode
 
-from main_scripts.main_cfa import train_cfa, train_cfa_v2, test_cfa_v2
+from main_scripts.main_cfa import main_train_cfa, train_cfa_v2, test_cfa_v2
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
@@ -22,7 +22,12 @@ class CfaTrainTests(unittest.TestCase):
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor(),
-            transforms.ConvertImageDtype(torch.float32),
+            transforms.Resize(
+                IMAGE_SIZE,
+                antialias=True,
+                interpolation=InterpolationMode.NEAREST,
+            ),
+            transforms.ConvertImageDtype(torch.float32)
         ])
 
     def test_cfa_train_with_mvtec_dataset(self):
@@ -47,10 +52,10 @@ class CfaTrainTests(unittest.TestCase):
         train_dataset.load_dataset()
         test_dataset.load_dataset()
 
-        train_cfa_v2(train_dataset, test_dataset, self.args.category, self.args.backbone,
-                     self.args.ad_layers,
-                     self.args.epochs,
-                     self.args.save_path, self.args.device)
+        main_train_cfa(train_dataset, test_dataset, self.args.category, self.args.backbone,
+                       self.args.ad_layers,
+                       self.args.epochs,
+                       self.args.save_path, self.args.device)
 
     def test_cfa_train_with_realiad_dataset(self):
         self.args.dataset_path = REALIAD_DATASET_PATH

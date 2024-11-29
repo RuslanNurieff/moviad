@@ -14,18 +14,15 @@ from moviad.utilities.configurations import TaskType
 from moviad.utilities.evaluator import Evaluator
 
 
-def main_train_cfa(dataset_path: str, category: str, backbone: str, ad_layers: list,
-                   epochs: int, save_path: str, device: torch.device):
+def train_cfa(train_dataset: Dataset, test_dataset: Dataset, category: str, backbone: str, ad_layers: list,
+                 epochs: int, save_path: str, device: torch.device):
     gamma_c = 1
     gamma_d = 1
 
     print(f"Training CFA for category: {category} \n")
-
-    train_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "train")
     print(f"Length train dataset: {len(train_dataset)}")
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True, drop_last=True)
 
-    test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "test")
     print(f"Length test dataset: {len(test_dataset)}")
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=2, shuffle=True, drop_last=True)
 
@@ -43,12 +40,11 @@ def main_train_cfa(dataset_path: str, category: str, backbone: str, ad_layers: l
         torch.save(cfa_model.state_dict(), save_path)
 
 
-def main_test_cfa(dataset_path: str, category: str, backbone: str, ad_layers: list, model_checkpoint_path: str,
-                  visual_test_path: str, device: torch.device):
+def test_cfa(test_dataset: Dataset, category: str, backbone: str, ad_layers: list, model_checkpoint_path: str,
+                device: torch.device, visual_test_path: str = None):
     gamma_c = 1
     gamma_d = 1
 
-    test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "test")
     print(f"Length test dataset: {len(test_dataset)}")
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=True)
 
@@ -88,35 +84,3 @@ def main_test_cfa(dataset_path: str, category: str, backbone: str, ad_layers: li
             for i in range(anomaly_maps.shape[0]):
                 cfa_model.save_anomaly_map(dirpath, anomaly_maps[i].cpu().numpy(), pred_scores[i], paths[i], labels[i],
                                            masks[i])
-
-
-def main():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--mode", choices=["train", "test"], help="Script execution mode: train or test")
-    parser.add_argument("--dataset_path", type=str, help="Path of the directory where the dataset is stored")
-    parser.add_argument("--category", type=str, help="Dataset category to test")
-    parser.add_argument("--backbone", type=str, help="Model backbone")
-    parser.add_argument("--ad_layers", type=str, nargs="+", help="List of ad layers")
-    parser.add_argument("--epochs", type=int, help="Number of epochs")
-    parser.add_argument("--save_path", type=str, default=None, help="Path of the .pt file where to save the model")
-    parser.add_argument("--visual_test_path", type=str, default=None,
-                        help="Path of the directory where to save the visual paths")
-    parser.add_argument("--device", type=str, help="Where to run the script")
-    parser.add_argument("--seed", type=int, default=1, help="Execution seed")
-
-    args = parser.parse_args()
-
-    torch.manual_seed(args.seed)
-    random.seed = args.seed
-    device = torch.device(args.device)
-
-    if args.mode == "train":
-        main_train_cfa(args.dataset_path, args.category, args.backbone, args.ad_layers, args.epochs, args.save_path, device)
-    elif args.mode == "test":
-        main_test_cfa(args.dataset_path, args.category, args.backbone, args.ad_layers, args.save_path, args.visual_test_path,
-                      device)
-
-
-if __name__ == "__main__":
-    main()
