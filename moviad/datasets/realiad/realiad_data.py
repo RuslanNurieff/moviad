@@ -25,10 +25,14 @@ class ImageData:
     image_path: str
     mask_path: Optional[str]  # mask_path may be None
 
+
 @dataclass
 class DatasetImageEntry:
     image: Image
     mask: Image
+    category: RealIadClass
+    anomaly_class: RealIadAnomalyClass
+
 
 @dataclass
 class RealIadData:
@@ -36,7 +40,6 @@ class RealIadData:
     data: List[ImageData]
     images: List[DatasetImageEntry] = None
     class_name: RealIadClass = None
-
 
     @staticmethod
     def from_json(json_path: str, class_name: RealIadClass, split: Split) -> 'RealIadData':
@@ -53,15 +56,15 @@ class RealIadData:
         return RealIadData(meta=meta,
                            data=data,
                            class_name=class_name)
-    
+
     def partition(self, ratio) -> ('RealIadData', 'RealIadData'):
         split_index = int(len(self.data) * ratio)
-        split_1 =  RealIadData(meta=self.meta,
-                           data=self.data[:split_index],
-                           class_name=self.class_name)
+        split_1 = RealIadData(meta=self.meta,
+                              data=self.data[:split_index],
+                              class_name=self.class_name)
         split_2 = RealIadData(meta=self.meta,
-                            data=self.data[split_index:],
-                            class_name=self.class_name)
+                              data=self.data[split_index:],
+                              class_name=self.class_name)
 
         return split_1, split_2
 
@@ -70,7 +73,6 @@ class RealIadData:
         return RealIadData(meta=self.meta,
                            data=data,
                            class_name=self.class_name)
-
 
     def load_images(self, img_root_dir: str) -> None:
         self.images = []
@@ -94,14 +96,16 @@ class RealIadData:
                     continue
                 mask = Image.open(image_mask_path).convert("L")
 
-            self.images.append(DatasetImageEntry(image=image, mask=mask))
-
+            self.images.append(DatasetImageEntry(image=image,
+                                                 mask=mask,
+                                                 category=image_entry.category,
+                                                 anomaly_class=image_entry.anomaly_class))
 
         if len(images_not_found) == self.data.__len__():
             raise ValueError("No images found in the dataset. Check root directory or image paths.")
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.images)
 
     def __getitem__(self, item) -> (ImageData, DatasetImageEntry):
         return self.data[item], self.images[item]

@@ -45,4 +45,4 @@ class PadimTrainer:
         if self.save_path is not None:
             model_savepath = self.model.get_model_savepath(self.save_path)
             os.makedirs(os.path.dirname(model_savepath), exist_ok=True)
-            torch.save(self.model.state_dict(), model_savepath)
+            torch.save(self.model.state_dict(), model_savepath, pickle_protocol=4)

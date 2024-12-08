@@ -9,3 +9,4 @@ scikit-learn
 scikit-image
 micromind
 tqdm
+wandb

@@ -92,13 +92,13 @@ class RealIadTestDatasetTests(unittest.TestCase):
         self.train_dataset.load_dataset()
 
         self.test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
-                                        REAL_IAD_DATASET_PATH,
-                                        AUDIO_JACK_DATASET_JSON,
-                                        task=TaskType.SEGMENTATION,
-                                        split=Split.TEST,
-                                        image_size=IMAGE_SIZE,
-                                        gt_mask_size=IMAGE_SIZE,
-                                        transform=self.transform)
+                                           REAL_IAD_DATASET_PATH,
+                                           AUDIO_JACK_DATASET_JSON,
+                                           task=TaskType.SEGMENTATION,
+                                           split=Split.TEST,
+                                           image_size=IMAGE_SIZE,
+                                           gt_mask_size=IMAGE_SIZE,
+                                           transform=self.transform)
         self.test_dataset.load_dataset()
 
     def test_dataset_is_not_none(self):
@@ -132,7 +132,7 @@ class RealIadTestDatasetTests(unittest.TestCase):
         self.assertEqual(image.dtype, torch.float32)
         self.assertIsNotNone(label)
         self.assertIs(type(label), int)
-        self.assertIn(label, [0, 1]) # 0: normal, 1: abnormal
+        self.assertIn(label, [0, 1])  # 0: normal, 1: abnormal
         self.assertIsNotNone(mask)
         self.assertIs(type(mask), torch.Tensor)
         self.assertEqual(mask.dtype, torch.float32)
@@ -142,7 +142,6 @@ class RealIadTestDatasetTests(unittest.TestCase):
     def test_training_dataset_should_not_contain_anoamlies(self):
         for item in self.train_dataset.data.data:
             self.assertEqual(item.anomaly_class, RealIadAnomalyClass.OK)
-
 
     def test_test_dataset_should_contain_anoamlies(self):
         contains_anomalies = False
@@ -155,15 +154,17 @@ class RealIadTestDatasetTests(unittest.TestCase):
     def test_dataset_is_contaminated(self):
         initial_train_size = self.train_dataset.__len__()
         initial_test_size = self.test_dataset.__len__()
-        self.train_dataset.contaminate(self.test_dataset, 0.1)
-        contains_anomalies = False
-        for item in self.train_dataset.data.data:
-            if item.anomaly_class != RealIadAnomalyClass.OK:
-                contains_anomalies = True
-                break
-        self.assertTrue(contains_anomalies)
+        contamination_size = self.train_dataset.contaminate(self.test_dataset, 0.1)
+
+        contaminated_entries = [entry for entry in self.train_dataset.data.images if
+                                entry.anomaly_class != RealIadAnomalyClass.OK]
+
+        self.assertGreater(len(contaminated_entries), 0)
         self.assertGreater(self.train_dataset.__len__(), initial_train_size)
         self.assertLess(self.test_dataset.__len__(), initial_test_size)
+        self.assertEqual(contamination_size, abs(initial_train_size - self.train_dataset.__len__()))
+        self.assertEqual(contamination_size, abs(initial_test_size - self.test_dataset.__len__()))
+        self.assertEqual(contamination_size, len(contaminated_entries))
 
 
 if __name__ == '__main__':

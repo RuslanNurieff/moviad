@@ -1,7 +1,9 @@
+import math
 from cProfile import label
 from enum import Enum
 from os.path import split
 
+import numpy as np
 import torch
 from PIL import Image
 import json
@@ -38,8 +40,8 @@ class RealIadDataset(IadDataset):
         self.split = split
         self.gt_mask_size = gt_mask_size
 
-    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
-        if not isinstance(source, RealIadDataset):
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
+        if type(source) != RealIadDataset:
             raise ValueError("Dataset should be of type RealIadDataset")
         if self.data is None or self.data.data is None:
             raise ValueError("Destination dataset is not loaded")
@@ -47,18 +49,20 @@ class RealIadDataset(IadDataset):
             raise ValueError("Source dataset is not loaded")
         
         torch.manual_seed(seed)
-        contamination_set_size = int(len(self.data) * ratio)
+        contamination_set_size = int(math.floor(len(self.data) * ratio))
+        contaminated_data_entries = [entry for entry in source.data.data if entry.anomaly_class != RealIadAnomalyClass.OK]
+        contaminated_image_entries = [image for image in source.data.images if image.anomaly_class != RealIadAnomalyClass.OK]
+        if len(contaminated_data_entries) < contamination_set_size:
+            raise ValueError(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
+                             f"Found {len(contaminated_data_entries)} entries, but needed {contamination_set_size} entries")
 
-        while contamination_set_size > 0:
-            index = torch.randint(0, len(source), (1,)).item()
-            entry = source.data.data[index]
-            if entry.anomaly_class == RealIadAnomalyClass.OK:
-                continue
-            if self.data.data.__contains__(entry):
-                continue
-            self.data.data.append(entry)
-            source.data.data.remove(entry)
-            contamination_set_size -= 1
+        contaminated_data_entries = np.random.choice(contaminated_data_entries, contamination_set_size, replace=False).tolist()
+        contaminated_image_entries = np.random.choice(contaminated_image_entries, contamination_set_size, replace=False).tolist()
+        self.data.data.extend(contaminated_data_entries)
+        self.data.images.extend(contaminated_image_entries)
+        source.data.data = [entry for entry in source.data.data if entry not in contaminated_data_entries]
+        source.data.images = [image for image in source.data.images if image not in contaminated_image_entries]
+        return contamination_set_size
 
     def partition(self, dataset: IadDataset, ratio: float) -> ('RealIadDataset', 'RealIadDataset'):
         if not isinstance(dataset, RealIadDataset):

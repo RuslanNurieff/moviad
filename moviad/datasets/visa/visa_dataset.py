@@ -1,9 +1,8 @@
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset
-
 from moviad.datasets.common import IadDataset
 from moviad.datasets.visa.visa_data import VisaData, VisaAnomalyClass
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
@@ -37,8 +36,8 @@ class VisaDataset(IadDataset):
     def load_dataset(self):
         self.__load__()
 
-    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> None:
-        if not isinstance(source, VisaDataset):
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
+        if type(source) != VisaDataset:
             raise ValueError("Dataset should be of type VisaDataset")
         if self.data is None or self.data.data is None:
             raise ValueError("Destination dataset is not loaded")
@@ -47,16 +46,14 @@ class VisaDataset(IadDataset):
 
         torch.manual_seed(seed)
         contamination_set_size = int(len(self.data) * ratio)
-        while contamination_set_size > 0:
-            index = torch.randint(0, len(source.data.images), (1,)).item()
-            entry = source.data.images[index]
-            if entry.label == VisaAnomalyClass.NORMAL:
-                continue
-            if self.data.images.__contains__(entry):
-                continue
-            self.data.images.append(entry)
-            source.data.images.remove(entry)
-            contamination_set_size -= 1
+        contaminated_entries = [entry for entry in source.data.images if entry.label == VisaAnomalyClass.ANOMALY]
+        if len(contaminated_entries) < contamination_set_size:
+            raise ValueError(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
+                             f"Found {len(contaminated_entries)} entries, but needed {contamination_set_size} entries")
+        contaminated_entries = np.random.choice(contaminated_entries, contamination_set_size, replace=False).tolist()
+        self.data.images.extend(contaminated_entries)
+        source.data.images = [entry for entry in source.data.images if entry not in contaminated_entries]
+        return contamination_set_size
 
 
     def __load__(self):

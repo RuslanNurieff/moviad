@@ -148,15 +148,19 @@ class VisaDatasetTests(unittest.TestCase):
         self.assertTrue(contains_anomalies)
 
     def test_training_dataset_is_contaminated(self):
-        initial_size = self.train_dataset.__len__()
-        self.train_dataset.contaminate(self.test_dataset, 0.1)
-        contains_anomalies = False
-        for item in self.test_dataset.data.images:
-            if item.label != VisaAnomalyClass.NORMAL:
-                contains_anomalies = True
-                break
-        self.assertTrue(contains_anomalies)
-        self.assertGreater(self.train_dataset.__len__(), initial_size)
+        initial_train_size = self.train_dataset.__len__()
+        initial_test_size = self.test_dataset.__len__()
+        contamination_size = self.train_dataset.contaminate(self.test_dataset, 0.1)
+
+        contaminated_entries = [entry for entry in self.train_dataset.data.images if
+                                entry.label == VisaAnomalyClass.ANOMALY]
+
+        self.assertGreater(len(contaminated_entries), 0)
+        self.assertGreater(self.train_dataset.__len__(), initial_train_size)
+        self.assertLess(self.test_dataset.__len__(), initial_test_size)
+        self.assertEqual(contamination_size, abs(initial_train_size - self.train_dataset.__len__()))
+        self.assertEqual(contamination_size, abs(initial_test_size - self.test_dataset.__len__()))
+        self.assertEqual(contamination_size, len(contaminated_entries))
 
 
 

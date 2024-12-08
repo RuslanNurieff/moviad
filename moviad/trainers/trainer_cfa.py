@@ -1,12 +1,30 @@
 import os
 
 import torch
+import wandb
 from torch.optim import AdamW
 from tqdm import tqdm
 
 from moviad.models.cfa.cfa import CFA
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.utilities.evaluator import Evaluator
+class TrainerResult:
+    img_roc: float
+    pxl_roc: float
+    f1_img: float
+    f1_pxl: float
+    img_pr: float
+    pxl_pr: float
+    pxl_pro: float
+
+    def __init__(self, img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro):
+        self.img_roc = img_roc
+        self.pxl_roc = pxl_roc
+        self.f1_img = f1_img
+        self.f1_pxl = f1_pxl
+        self.img_pr = img_pr
+        self.pxl_pr = pxl_pr
+        self.pxl_pro = pxl_pro
 
 class TrainerCFA():
 
@@ -32,6 +50,7 @@ class TrainerCFA():
         test_dataloder: torch.utils.data.DataLoader,
         category: str,
         device: str,
+        logger = None
     ):
         self.cfa_model = cfa_model
         self.backbone = backbone
@@ -41,9 +60,10 @@ class TrainerCFA():
         self.device = device
         self.evaluator = Evaluator(self.test_dataloader, self.device)  
         self.category = category
+        self.logger = logger
         
     
-    def train(self, epochs: int):
+    def train(self, epochs: int) -> (TrainerResult, TrainerResult):
         """
         Train the model by first extracting the features from the batches, transform them 
         with the patch descriptor and then apply the CFA loss
@@ -55,11 +75,12 @@ class TrainerCFA():
         """
 
         params = [{'params' : self.cfa_model.parameters()},]
+        learning_rate = 1e-3
+        weight_decay = 5e-4
         optimizer     = AdamW(params        = params, 
-                              lr            = 1e-3,
-                              weight_decay  = 5e-4,
+                              lr            = learning_rate,
+                              weight_decay  = weight_decay,
                               amsgrad       = True )
-
 
         best_img_roc = 0
         best_pxl_roc = 0
@@ -69,6 +90,17 @@ class TrainerCFA():
         best_pxl_pr = 0  
         best_pxl_pro = 0
 
+        if self.logger is not None:
+            self.logger.config.update(
+                {
+                    "epochs": epochs,
+                    "learning_rate": learning_rate,
+                    "weight_decay": weight_decay,
+                    "category": self.category,
+                    "optimizer": "AdamW"
+                }
+            )
+            self.logger.watch(self.cfa_model, log='all', log_freq=10)
         self.cfa_model.train()
         
         for epoch in range(epochs):
@@ -76,6 +108,7 @@ class TrainerCFA():
             print(f"EPOCH: {epoch}")
 
             self.cfa_model.train()
+            batch_loss = 0
             for batch in tqdm(self.train_dataloader):
                 optimizer.zero_grad()
 
@@ -87,10 +120,25 @@ class TrainerCFA():
                 loss, _ = self.cfa_model(p)
                 """
                 loss = self.cfa_model(batch.to(self.device))
+                batch_loss += loss.item()
+                self.logger.log({"loss": loss.item()})
                 loss.backward()
                 optimizer.step()
 
+            avg_batch_loss = batch_loss / len(self.train_dataloader)
+            self.logger.log({"avg_batch_loss": avg_batch_loss})
+
             img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.cfa_model)
+
+            self.logger.log({
+                "img_roc": img_roc,
+                "pxl_roc": pxl_roc,
+                "f1_img": f1_img,
+                "f1_pxl": f1_pxl,
+                "img_pr": img_pr,
+                "pxl_pr": pxl_pr,
+                "pxl_pro": pxl_pro
+            })
 
             best_img_roc = img_roc if img_roc > best_img_roc else best_img_roc
             best_pxl_roc = pxl_roc if pxl_roc > best_pxl_roc else best_pxl_roc
@@ -99,6 +147,7 @@ class TrainerCFA():
             best_img_pr  = img_pr if img_pr > best_img_pr else best_img_pr
             best_pxl_pr  = pxl_pr if pxl_pr > best_pxl_pr else best_pxl_pr
             best_pxl_pro = pxl_pro if pxl_pro > best_pxl_pro else best_pxl_pro
+
 
             print("End training performances:")
             print(f"""
@@ -112,6 +161,28 @@ class TrainerCFA():
             """)
 
         dirname = os.path.dirname(__file__)
+
+        best_results = TrainerResult(
+            img_roc = best_img_roc,
+            pxl_roc = best_pxl_roc,
+            f1_img = best_img_f1,
+            f1_pxl = best_pxl_f1,
+            img_pr = best_img_pr,
+            pxl_pr = best_pxl_pr,
+            pxl_pro = best_pxl_pro
+        )
+
+        results = TrainerResult(
+            img_roc = img_roc,
+            pxl_roc = pxl_roc,
+            f1_img = f1_img,
+            f1_pxl = f1_pxl,
+            img_pr = img_pr,
+            pxl_pr = pxl_pr,
+            pxl_pro = pxl_pro
+        )
+        self.logger.finish()
+        return results, best_results
 
     
 

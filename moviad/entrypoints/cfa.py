@@ -14,17 +14,17 @@ from moviad.utilities.configurations import TaskType
 from moviad.utilities.evaluator import Evaluator
 
 
-def train_cfa(train_dataset: Dataset, test_dataset: Dataset, category: str, backbone: str, ad_layers: list,
-                 epochs: int, save_path: str, device: torch.device):
+def train_cfa(train_dataset: Dataset, test_dataset: Dataset, batch_size: int, category: str, backbone: str, ad_layers: list,
+                 epochs: int, save_path: str, device: torch.device, logger = None):
     gamma_c = 1
     gamma_d = 1
 
     print(f"Training CFA for category: {category} \n")
     print(f"Length train dataset: {len(train_dataset)}")
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True, drop_last=True)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
     print(f"Length test dataset: {len(test_dataset)}")
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=2, shuffle=True, drop_last=True)
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
     feature_extractor = CustomFeatureExtractor(backbone, ad_layers, device)
 
@@ -32,12 +32,15 @@ def train_cfa(train_dataset: Dataset, test_dataset: Dataset, category: str, back
     cfa_model.initialize_memory_bank(train_dataloader)
     cfa_model = cfa_model.to(device)
 
-    trainer = TrainerCFA(cfa_model, backbone, feature_extractor, train_dataloader, test_dataloader, category, device)
-    trainer.train(epochs)
+    trainer = TrainerCFA(cfa_model, backbone, feature_extractor, train_dataloader, test_dataloader, category, device, logger)
+    results, best_results = trainer.train(epochs)
 
     # save the model
     if save_path:
         torch.save(cfa_model.state_dict(), save_path)
+
+    return results, best_results
+
 
 
 def test_cfa(test_dataset: Dataset, category: str, backbone: str, ad_layers: list, model_checkpoint_path: str,

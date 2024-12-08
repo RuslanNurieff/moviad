@@ -17,9 +17,9 @@ IMAGE_INPUT_SIZE = (224, 224)
 OUTPUT_SIZE = (224, 224)
 
 
-def train_padim(train_dataset: Dataset, test_dataset: Dataset, category: str, backbone: str, ad_layers: list,
-                device: torch.device, model_checkpoint_save_path: str, diagonal_convergence: bool = False,
-                results_dirpath: str = None):
+def main_train_padim(train_dataset: Dataset, test_dataset: Dataset, category: str, backbone: str, ad_layers: list,
+                     device: torch.device, model_checkpoint_save_path: str, diagonal_convergence: bool = False,
+                     results_dirpath: str = None):
     padim = Padim(
         backbone,
         category,

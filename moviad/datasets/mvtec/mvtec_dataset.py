@@ -196,7 +196,7 @@ class MVTecDataset(IadDataset):
         return len(self.samples)
 
     def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
-        if type(source) == MVTecDataset:
+        if type(source) != MVTecDataset:
             raise ValueError("Dataset should be of type MVTecDataset")
         if self.samples is None:
             raise ValueError("Destination dataset is not loaded")
