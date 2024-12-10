@@ -676,6 +676,7 @@ class CfaBenchmark(unittest.TestCase):
 class CfaBenchmarkContaminated(unittest.TestCase):
     def setUp(self):
         self.seed = 3
+        self.epoch = 10
         torch.manual_seed(self.seed)
         self.contamination_ratio = 0.1
         self.args = get_training_args()
@@ -730,7 +731,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
         train_cfa(train_dataset, test_dataset, 32, self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -772,7 +773,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -817,7 +818,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -860,7 +861,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -905,7 +906,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -949,7 +950,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -958,7 +959,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
         self.args.category = RealIadClass.AUDIOJACK
         self.args.backbone = 'mobilenet_v2'
         self.args.ad_layers = ["features.4", "features.7", "features.10"]
-        self.args.save_path = f"./{self._testMethodName}/patch.pt"
+        self.args.save_path = f"./patch.pt"
         self.args.model_checkpoint_path = f"./{self._testMethodName}/patch.pt"
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.logger.name = self._testMethodName
@@ -995,7 +996,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1004,7 +1005,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
         self.args.category = RealIadClass.AUDIOJACK
         self.args.backbone = 'wide_resnet50_2'
         self.args.ad_layers = ["layer1", "layer2", "layer3"]
-        self.args.save_path = f"./{self._testMethodName}/patch.pt"
+        self.args.save_path = f"./patch.pt"
         self.args.model_checkpoint_path = f"./{self._testMethodName}/patch.pt"
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.logger.name = self._testMethodName
@@ -1041,7 +1042,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1086,7 +1087,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1095,7 +1096,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
         self.args.category = RealIadClass.AUDIOJACK
         self.args.backbone = 'micronet-m1'
         self.args.ad_layers = [1, 2, 3]
-        self.args.save_path = f"./{self._testMethodName}/patch.pt"
+        self.args.save_path = f"./patch.pt"
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.logger.name = self._testMethodName
         self.logger.config.update({
@@ -1131,7 +1132,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1177,7 +1178,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1219,7 +1220,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1228,7 +1229,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
         self.args.category = 'pill'
         self.args.backbone = 'wide_resnet50_2'
         self.args.ad_layers = ["layer1", "layer2", "layer3"]
-        self.args.save_path = f"./{self._testMethodName}/patch.pt"
+        self.args.save_path = f"./patch.pt"
         self.args.model_checkpoint_path = f"./patch.pt"
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.logger.name = self._testMethodName
@@ -1260,7 +1261,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1301,7 +1302,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1342,7 +1343,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
@@ -1383,7 +1384,7 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,
-                  30,
+                  self.epoch,
                   self.args.save_path,
                   self.args.device, self.logger)
 
