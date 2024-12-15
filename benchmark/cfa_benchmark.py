@@ -777,11 +777,11 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.save_path,
                   self.args.device, self.logger)
 
-    def cfa_mvtec_phinet_contamianted(self):
+    def test_cfa_mvtec_phinet_contamianted(self):
         self.args.dataset_path = MVTECH_DATASET_PATH
         self.args.category = 'pill'
-        self.args.backbone = 'phinet_2.3_0.75_5'
-        self.args.ad_layers = ["1", "2", "3"]
+        self.args.backbone = 'phinet_1.2_0.5_6_downsampling'
+        self.args.ad_layers = [2, 6, 7] # [4, 5, 6] , [5, 6, 7] (PaSTE), [6, 7, 8]
         self.args.save_path = f"./patch.pt"
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.logger.name = self._testMethodName
@@ -1046,12 +1046,12 @@ class CfaBenchmarkContaminated(unittest.TestCase):
                   self.args.save_path,
                   self.args.device, self.logger)
 
-    def cfa_realiad_phinet_contaminated(self):
+    def test_cfa_realiad_phinet_contaminated(self):
         self.args.dataset_path = REAL_IAD_DATASET_PATH
         self.args.category = RealIadClass.AUDIOJACK
         self.args.backbone = 'phinet_2.3_0.75_5'
         self.args.ad_layers = ["1", "2", "3"]
-        self.args.save_path = f"./{self._testMethodName}/patch.pt"
+        self.args.save_path = f"./patch.pt"
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.logger.name = self._testMethodName
         self.logger.config.update({
