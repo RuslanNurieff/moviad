@@ -12,7 +12,6 @@ from torch.nn import functional as F
 
 from ...utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 
-
 # Dict: "backbone_model_name" -> {(layer_idxs): (true_dimension, random_projection_dimension)}
 EMBEDDING_SIZES = {
     "phinet_1.2_0.5_6_downsampling": {
@@ -53,7 +52,6 @@ def idx_to_layer_name(backbone_model_name, idx: Union[Tuple, List]):
 
 
 class Padim(nn.Module):
-
     HYPERPARAMS = [
         "class_name",
         "backbone_model_name",
@@ -66,12 +64,12 @@ class Padim(nn.Module):
     ]
 
     def __init__(
-        self,
-        backbone_model_name,
-        class_name,
-        device,
-        layers_idxs: list,
-        diag_cov=False,
+            self,
+            backbone_model_name,
+            class_name,
+            device,
+            layers_idxs: list,
+            diag_cov=False,
     ):
         """
         Args:
@@ -89,11 +87,9 @@ class Padim(nn.Module):
         self.backbone_model_name = backbone_model_name
         self.layers_idxs = layers_idxs
 
-
         # self.layers_idxs = idx_to_layer_name(
         #     backbone_model_name, layers_idxs
         # )  # feature extraction layers
-
 
         self.load_backbone()
         # dimensionality reduction: random projection
@@ -120,7 +116,7 @@ class Padim(nn.Module):
         return z
 
     def raw_feature_maps_to_embeddings(
-        self, layer_outputs: Dict[str, List[torch.Tensor]]
+            self, layer_outputs: Dict[str, List[torch.Tensor]]
     ):
         """
         Given a dict of lists of outputs of the layers, concatenate the feature maps and
@@ -193,7 +189,7 @@ class Padim(nn.Module):
 
         return score_map, img_scores
 
-    def fit_multivariate_gaussian(self, embedding_vectors, update_params):
+    def fit_multivariate_gaussian(self, embedding_vectors, update_params, logger=None):
         """
         Fit a multivariate Gaussian distribution to the set of given embedding vectors.
 
@@ -210,15 +206,20 @@ class Padim(nn.Module):
         for i in range(H * W):
             if self.diag_cov:
                 temp_cov = (
-                    np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
-                    + 0.01 * I
+                        np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
+                        + 0.01 * I
                 )
                 temp_cov[~I.astype(bool)] = 0
                 cov[:, :, i] = temp_cov
             else:
                 cov[:, :, i] = (
-                    np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
-                    + 0.01 * I
+                        np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
+                        + 0.01 * I
+                )
+            if logger is not None:
+                logger.log({
+                    "cov": cov[:, :, i],
+                    "mean": mean[:, i], }
                 )
         if update_params:
             self.gauss_mean, self.gauss_cov = mean, cov
@@ -283,7 +284,7 @@ class Padim(nn.Module):
         embedding_vectors = embedding_vectors.view(B, C, H * W).cpu().numpy()
         dist_list = []
         assert (
-            self.gauss_mean is not None and self.gauss_cov is not None
+                self.gauss_mean is not None and self.gauss_cov is not None
         ), "The model must be trained first."
         # compute each patch-embedding distance
         for i in range(H * W):

@@ -36,7 +36,7 @@ class Evaluator:
         self.test_dataloader = test_dataloader
         self.device = device
 
-    def evaluate(self, model, output_path = False):
+    def evaluate(self, model,  logger = None, output_path = False):
         """
         Args:
             model: a model object on which you can call model.predict(batched_images)
@@ -109,6 +109,16 @@ class Evaluator:
 
         # TODO: Implement Add False-alarm rate
 
+        if logger is not None:
+            logger.log({
+                "img_roc_auc": img_roc_auc,
+                "per_pixel_rocauc": per_pixel_rocauc,
+                "f1_img": f1_img,
+                "f1_pxl": f1_pxl,
+                "pr_auc_img": pr_auc_img,
+                "pr_auc_pxl": pr_auc_pxl,
+                "au_pro_pxl": au_pro_pxl
+            })
 
         return (
             img_roc_auc,

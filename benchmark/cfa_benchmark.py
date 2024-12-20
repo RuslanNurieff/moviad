@@ -36,9 +36,10 @@ class CfaBenchmark(unittest.TestCase):
 
         ])
         wandb.setup(wandb.Settings(program=__name__, program_relpath=__name__))
-        self.logger = wandb.init(project="moviad_benchmark")
+        self.logger = wandb.init(project="moviad_benchmark", group="cfa_contaminated")
 
     def test_cfa_mvtec_mobilenetv2(self):
+        self.logger.tags = ["cfa", "mvtec", "mobilenet_v2"]
         self.args.dataset_path = MVTECH_DATASET_PATH
         self.args.category = 'pill'
         self.args.backbone = 'mobilenet_v2'
@@ -117,11 +118,11 @@ class CfaBenchmark(unittest.TestCase):
                   self.args.save_path,
                   self.args.device, self.logger)
 
-    def cfa_mvtec_phinet(self):
+    def test_cfa_mvtec_phinet(self):
         self.args.dataset_path = MVTECH_DATASET_PATH
         self.args.category = 'pill'
-        self.args.backbone = 'phinet_2.3_0.75_5'
-        self.args.ad_layers = ["1", "2", "3"]
+        self.args.backbone = 'phinet_1.2_0.5_6_downsampling'
+        self.args.ad_layers = [2, 6, 7]
         self.args.save_path = f"./patch.pt"
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.logger.name = self._testMethodName
@@ -152,7 +153,7 @@ class CfaBenchmark(unittest.TestCase):
         train_dataset.load_dataset()
         test_dataset.load_dataset()
         train_cfa(train_dataset, test_dataset,
-                  32,
+                  4,
                   self.args.category,
                   self.args.backbone,
                   self.args.ad_layers,

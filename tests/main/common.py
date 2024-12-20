@@ -17,7 +17,7 @@ SAVE_PATH = "./patch.pt"
 VISUAL_TEST_PATH = "./visual_test"
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 SEED = 42
-MODEL_CHECKPOINT_PATH = "./patch.pt"
+MODEL_CHECKPOINT_PATH = "./"
 MAX_DATASET_SIZE = 500
 EPOCHS = 1
 INPUT_SIZES = {
@@ -33,7 +33,6 @@ class StfpmTestParams:
     boot_layer = None
     categories: list[str] = None
     model_name: str = None
-
     input_size: int = None
     ad_model: str = None
     output_size: tuple = None
@@ -52,14 +51,17 @@ class StfpmTrainingParams:
                  input_sizes, output_size, checkpoint_dir, dataset_path, disable_dataset_norm, log_dirpath,
                  boot_layer=None):
         self.train_dataset = train_dataset
+        self.test_dataset = None
         self.categories = categories
         self.ad_layers = ad_layers
+        self.ad_model = None
         self.results_dirpath = results_dirpath
         self.epochs = epochs
         self.seeds = seeds
         self.batch_size = batch_size
         self.backbone_model_name = model_name
         self.device = device
+        self.input_sizes = INPUT_SIZES
         self.img_input_size = input_sizes[model_name]
         self.img_output_size = output_size
         self.early_stopping = None  # 0.01 | None | 0.002
@@ -68,6 +70,7 @@ class StfpmTrainingParams:
         self.normalize_dataset = bool(not disable_dataset_norm)
         self.dataset_path = dataset_path
         self.log_dirpath = log_dirpath
+        self.trained_models_filepaths = None
 
 
 @dataclass

@@ -11,6 +11,7 @@ from moviad.utilities.configurations import TaskType, Split
 
 REAL_IAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'
 AUDIO_JACK_DATASET_JSON = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/audiojack.json'
+PILL_DATASET_JSON = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/vcpill.json'
 IMAGE_SIZE = (224, 224)
 
 

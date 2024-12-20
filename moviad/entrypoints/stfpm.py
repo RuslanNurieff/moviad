@@ -10,16 +10,16 @@ from moviad.utilities.evaluator import Evaluator, append_results
 from tests.main.common import StfpmTrainingParams, StfpmTestParams
 
 
-def train_stfpm(params: StfpmTrainingParams) -> None:
+def train_stfpm(params: StfpmTrainingParams, logger = None) -> None:
     ad_model = "stfpm"
     print(f"Training with params: {params}")
     params.epochs = [params.epochs] * len(params.ad_layers)
-    trained_models_filepaths = train_param_grid_search(params.__dict__)
+    trained_models_filepaths = train_param_grid_search(params.__dict__, logger)
 
     m = "\n".join(trained_models_filepaths)
     print(f"Trained models:{m}")
 
-def test_stfpm(params: StfpmTestParams):
+def test_stfpm(params: StfpmTrainingParams, logger = None) -> None:
     if params.trained_models_filepaths is None:
         params.trained_models_filepaths = glob(
             os.path.join(params.checkpoint_dir, "**/*.pth.tar"), recursive=True
@@ -55,8 +55,8 @@ def test_stfpm(params: StfpmTestParams):
         print(f"Length test dataset: {len(params.test_dataset)}")
 
         # load the model snapshot
-        model = Stfpm(input_size=params.input_size,
-                      output_size=params.output_size)
+        model = Stfpm(input_size=params.img_input_size,
+                      output_size=params.img_output_size)
         model.load_state_dict(
             torch.load(checkpoint_path, map_location=params.device), strict=False
         )
@@ -64,7 +64,7 @@ def test_stfpm(params: StfpmTestParams):
 
         # evaluate the model
         evaluator = Evaluator(test_dataloader=test_dataloader, device=params.device)
-        scores = evaluator.evaluate(model)
+        scores = evaluator.evaluate(model, logger)
 
         # save the scores
         metrics_filename = os.path.join(
@@ -83,7 +83,7 @@ def test_stfpm(params: StfpmTestParams):
             model.student_bootstrap_layer,
             model.epochs,
             img_input_size,
-            params.output_size,
+            params.img_output_size,
         )
 
 def visualize_stfpm(params: StfpmTestParams):

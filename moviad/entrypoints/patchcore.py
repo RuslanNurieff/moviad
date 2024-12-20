@@ -24,7 +24,7 @@ IMAGE_SIZE = (224, 224)
 
 def train_patchcore(train_dataset: Dataset, test_dataset: Dataset, category: str, backbone: str, ad_layers: list,
                     save_path: str,
-                    device: torch.device):
+                    device: torch.device,  logger = None) -> None:
     # initialize the feature extractor
     feature_extractor = CustomFeatureExtractor(backbone, ad_layers, device, True, False, None)
     print(f"Training Pathcore for category: {category} \n")
@@ -39,7 +39,7 @@ def train_patchcore(train_dataset: Dataset, test_dataset: Dataset, category: str
     patchcore.to(device)
     patchcore.train()
 
-    trainer = TrainerPatchCore(patchcore, train_dataloader, test_dataloader, device)
+    trainer = TrainerPatchCore(patchcore, train_dataloader, test_dataloader, device, logger)
     trainer.train()
 
     # save the model

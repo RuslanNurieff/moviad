@@ -28,16 +28,17 @@ def save_logs(logs, category, log_dirpath, log_filename):
 
 
 def train_model(
-    model: Stfpm,
-    train_loader: DataLoader,
-    val_loader: DataLoader,
-    epochs: int,
-    device: torch.device,
-    category: str,
-    model_save_path: str,
-    log_dirpath=None,
-    seed=None,
-    early_stopping: Union[float, bool] = False,
+        model: Stfpm,
+        train_loader: DataLoader,
+        val_loader: DataLoader,
+        epochs: int,
+        device: torch.device,
+        category: str,
+        model_save_path: str,
+        log_dirpath=None,
+        seed=None,
+        early_stopping: Union[float, bool] = False,
+        logger = None
 ):
     """
     Train the student-teacher feature-pyramid model and save checkpoints
@@ -81,6 +82,18 @@ def train_model(
     def loss_fn(t_feat, s_feat):
         return torch.sum((t_feat - s_feat) ** 2, 1).mean()
 
+    if logger is not None:
+        logger.config.update(
+            {
+                "category": category,
+                "epochs": epochs,
+                "seed": seed,
+                "optimizer": optimizer,
+            },
+            allow_val_change=True
+        )
+        logger.watch(model, log="parameters", log_freq=10)
+
     logs = []
     for epoch in trange(epochs, desc="Train stfpm"):
         model.train()
@@ -92,6 +105,7 @@ def train_model(
             t_feat, s_feat = model(batch_img.to(device))
 
             loss = loss_fn(t_feat[0], s_feat[0])
+            logger.log({"train_loss": loss.item()})
             for i in range(1, len(t_feat)):
                 t_feat[i] = F.normalize(t_feat[i], dim=1)
                 s_feat[i] = F.normalize(s_feat[i], dim=1)
@@ -104,16 +118,19 @@ def train_model(
             optimizer.step()
 
         mean_loss /= len(train_loader)
+        logger.log({"avg_batch_loss": mean_loss})
 
         # evaluate the model
         with torch.no_grad():
             model.eval()
             val_loss = torch.zeros(1, device=device)
+            logger.log({"val_loss": mean_loss})
             for batch_imgs in val_loader:
                 # NOTE: train and val losses are computed in different ways, maybe we can make them the same?
                 anomaly_maps, _ = model(batch_imgs.to(device))
                 val_loss += anomaly_maps.mean()
             val_loss /= len(val_loader)
+
 
         log_dict = {
             "epochs": epoch,
@@ -135,7 +152,7 @@ def train_model(
 
         if early_stopping not in [False, None] and epoch > 0:
             if np.abs(val_loss.cpu() - prev_val_loss) < early_stopping:
-                print(f"Early stopping at epoch {epoch+1}/{epochs}")
+                print(f"Early stopping at epoch {epoch + 1}/{epochs}")
                 break
         prev_val_loss = val_loss.cpu()
 
@@ -157,16 +174,17 @@ def train_model(
 
 
 def train_param_grid_step(train_dataset: IadDataset,
-    config,
-    batch_size,
-    backbone_model_name,
-    device,
-    img_input_size,
-    img_output_size,
-    early_stopping=False,
-    checkpoint_dir="./snapshots",
-    normalize_dataset=True,
-):
+                          config,
+                          batch_size,
+                          backbone_model_name,
+                          device,
+                          img_input_size,
+                          img_output_size,
+                          early_stopping=False,
+                          checkpoint_dir="./snapshots",
+                          normalize_dataset=True,
+                          logger=None
+                          ):
     category = config["category"]
     ad_layers = config["ad_layers"]
     dataset_path = config["dataset_path"]
@@ -174,6 +192,7 @@ def train_param_grid_step(train_dataset: IadDataset,
     epochs = config["epochs"]
     log_dirpath = config.get("log_dirpath", None)
     seed = config.get("seed", None)
+
 
     print(
         f"TRAIN | cat: {category}, ad_layers: {ad_layers}, epochs: {epochs}, seed: {seed}, early_stopping: {early_stopping}, bootstrap: {student_bootstrap_layer}"
@@ -197,6 +216,18 @@ def train_param_grid_step(train_dataset: IadDataset,
         train_dataset, batch_size=batch_size, pin_memory=True, shuffle=True
     )
 
+    if logger is not None:
+        logger.config.update(
+            {
+                "category": category,
+                "ad_layers": ad_layers,
+                "epochs": epochs,
+                "seed": seed,
+                "student_bootstrap_layer": student_bootstrap_layer
+            },
+            allow_val_change=True
+        )
+
     model = Stfpm(
         input_size=img_input_size,
         output_size=img_output_size,
@@ -217,6 +248,7 @@ def train_param_grid_step(train_dataset: IadDataset,
         log_dirpath=log_dirpath,
         seed=seed,
         early_stopping=early_stopping,
+        logger=logger
     )
 
     train_time = time.time() - start_time
@@ -241,7 +273,7 @@ default_params = {
 }
 
 
-def train_param_grid_search(params=default_params):
+def train_param_grid_search(params=default_params, logger=None):
     """
     Parameters:
         categories: list of categories to train the model on
@@ -260,7 +292,7 @@ def train_param_grid_search(params=default_params):
     )
     for category in params["categories"]:
         for ad_layers, epochs, boot_layer in zip(
-            params["ad_layers"], params["epochs"], boot_layers
+                params["ad_layers"], params["epochs"], boot_layers
         ):
             logs = []
             for seed in params["seeds"]:
@@ -287,6 +319,7 @@ def train_param_grid_search(params=default_params):
                         params["early_stopping"],
                         params["checkpoint_dir"],
                         params["normalize_dataset"],
+                        logger
                     )
                     trained_models_filepaths.append(snapshot_path)
                     if params["log_dirpath"] is not None:

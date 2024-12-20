@@ -20,10 +20,13 @@ class PadimTrainer:
 
         model.to(device)
 
-    def train(self, train_dataloader):
+    def train(self, train_dataloader, logger=None):
         print(f"Train Padim. Backbone: {self.model.backbone_model_name}")
 
         self.model.train()
+
+        if logger is not None:
+            logger.watch(self.model)
 
         # 1. get the feature maps from the backbone
         layer_outputs: dict[str, list[torch.Tensor]] = {
@@ -40,7 +43,7 @@ class PadimTrainer:
         # 2. use the feature maps to get the embeddings
         embedding_vectors = self.model.raw_feature_maps_to_embeddings(layer_outputs)
         # 3. fit the multivariate Gaussian distribution
-        self.model.fit_multivariate_gaussian(embedding_vectors, update_params=True)
+        self.model.fit_multivariate_gaussian(embedding_vectors, update_params=True, logger=logger)
         # 4. save the model
         if self.save_path is not None:
             model_savepath = self.model.get_model_savepath(self.save_path)

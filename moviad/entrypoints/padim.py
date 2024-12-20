@@ -12,14 +12,14 @@ from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.utilities.evaluator import Evaluator, append_results
 from moviad.utilities.configurations import TaskType, Split
 
-BATCH_SIZE = 8
+BATCH_SIZE = 2
 IMAGE_INPUT_SIZE = (224, 224)
 OUTPUT_SIZE = (224, 224)
 
 
 def train_padim(train_dataset: Dataset, test_dataset: Dataset, category: str, backbone: str, ad_layers: list,
                 device: torch.device, model_checkpoint_save_path: str, diagonal_convergence: bool = False,
-                results_dirpath: str = None):
+                results_dirpath: str = None, logger = None) -> None:
     padim = Padim(
         backbone,
         category,
@@ -40,7 +40,7 @@ def train_padim(train_dataset: Dataset, test_dataset: Dataset, category: str, ba
         train_dataset, batch_size=BATCH_SIZE, pin_memory=True, drop_last=True
     )
 
-    trainer.train(train_dataloader)
+    trainer.train(train_dataloader, logger)
 
     # evaluate the model
     test_dataloader = DataLoader(
@@ -49,6 +49,16 @@ def train_padim(train_dataset: Dataset, test_dataset: Dataset, category: str, ba
 
     evaluator = Evaluator(test_dataloader=test_dataloader, device=device)
     img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
+    if logger is not None:
+        logger.log({
+            "img_roc": img_roc,
+            "pxl_roc": pxl_roc,
+            "f1_img": f1_img,
+            "f1_pxl": f1_pxl,
+            "img_pr": img_pr,
+            "pxl_pr": pxl_pr,
+            "pxl_pro": pxl_pro,
+        })
 
     print("Evaluation performances:")
     print(f"""

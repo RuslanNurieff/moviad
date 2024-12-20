@@ -100,7 +100,8 @@ class TrainerCFA():
                     "weight_decay": weight_decay,
                     "category": self.category,
                     "optimizer": "AdamW"
-                }
+                },
+                allow_val_change=True
             )
             self.logger.watch(self.cfa_model, log='all', log_freq=10)
         self.cfa_model.train()
