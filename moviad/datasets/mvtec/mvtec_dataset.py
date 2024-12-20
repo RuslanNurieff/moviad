@@ -116,6 +116,29 @@ class MVTecDataset(IadDataset):
             ]
         )
 
+
+    def compute_contamination_ratio(self) -> float:
+        if self.samples is None:
+            raise ValueError("Dataset is not loaded")
+
+        contaminated_samples = self.samples[self.samples["label_index"] == LabelName.ABNORMAL.value]
+
+        for sample in contaminated_samples:
+            if not Path(sample["mask_path"]).exists():
+                raise ValueError("Mask file does not exist")
+
+            mask = Image.open(sample["mask_path"]).convert("L")
+            mask = self.transform_mask(mask)
+
+
+
+
+
+
+
+
+
+
     def contains(self, item) -> bool:
         return self.samples['image_path'].eq(item['image_path']).any()
 
@@ -213,7 +236,8 @@ class MVTecDataset(IadDataset):
                 f"while {contamination_set_size} are required."
             )
 
-        contaminated_entries_indices = np.random.choice(contaminated_entries_indices, contamination_set_size, replace=False)
+        contaminated_entries_indices = np.random.choice(contaminated_entries_indices, contamination_set_size,
+                                                        replace=False)
         for index in contaminated_entries_indices:
             entry_metadata = source.samples.iloc[index]
             if source.preload_imgs:
