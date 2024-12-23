@@ -36,6 +36,11 @@ class VisaDataset(IadDataset):
     def load_dataset(self):
         self.__load__()
 
+    def compute_contamination_ratio(self) -> float:
+        if self.data is None or self.data.data is None:
+            raise ValueError("Dataset is not loaded")
+        return self.data.compute_contamination_ratio()
+
     def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
         if type(source) != VisaDataset:
             raise ValueError("Dataset should be of type VisaDataset")

@@ -14,6 +14,7 @@ import torch
 from torchvision.transforms import transforms
 from torch.utils.data import Dataset
 
+from moviad.backbones.micronet.utils import compute_mask_contamination
 from moviad.datasets.common import IadDataset
 from moviad.utilities.configurations import TaskType, Split, LabelName
 
@@ -122,20 +123,18 @@ class MVTecDataset(IadDataset):
             raise ValueError("Dataset is not loaded")
 
         contaminated_samples = self.samples[self.samples["label_index"] == LabelName.ABNORMAL.value]
+        if contaminated_samples.empty:
+            return 0
 
-        for sample in contaminated_samples:
-            if not Path(sample["mask_path"]).exists():
+        total_contamination_ratio = 0
+        for index, row  in contaminated_samples.iterrows():
+            if not Path(row["mask_path"]).exists():
                 raise ValueError("Mask file does not exist")
 
-            mask = Image.open(sample["mask_path"]).convert("L")
+            mask = Image.open(row["mask_path"]).convert("L")
             mask = self.transform_mask(mask)
-
-
-
-
-
-
-
+            total_contamination_ratio += compute_mask_contamination(mask)
+        return total_contamination_ratio / len(contaminated_samples)
 
 
 

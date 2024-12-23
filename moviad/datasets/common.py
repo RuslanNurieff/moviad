@@ -9,6 +9,11 @@ class IadDataset(Dataset):
     split: Split
     class_name: str
     dataset_path: str
+    contamination_ratio: float
+
+    @abstractmethod
+    def __len__(self):
+        pass
 
     @abstractmethod
     def set_category(self, category: str):

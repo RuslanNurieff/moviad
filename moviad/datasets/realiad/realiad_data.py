@@ -5,6 +5,7 @@ from typing import Optional, List
 import numpy as np
 import PIL.Image as Image
 
+from moviad.backbones.micronet.utils import compute_mask_contamination
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass
 from moviad.utilities.configurations import Split
 
@@ -109,3 +110,16 @@ class RealIadData:
 
     def __getitem__(self, item) -> (ImageData, DatasetImageEntry):
         return self.data[item], self.images[item]
+
+    def compute_contamination_ratio(self, transform=None) -> float:
+        if self.images is None:
+            raise ValueError("Images are not loaded. Load images first.")
+
+        contaminated_samples = [entry for entry in self.images if entry.anomaly_class != RealIadAnomalyClass.OK]
+        total_contamination_ratio = 0.0
+        for entry in contaminated_samples:
+            mask = entry.mask
+            mask = mask if transform is None else transform(mask)
+            total_contamination_ratio += compute_mask_contamination(mask)
+
+        return total_contamination_ratio / len(contaminated_samples) if len(contaminated_samples) > 0 else 0.0

@@ -196,5 +196,5 @@ class TrainerCFA():
             pxl_pr=pxl_pr,
             pxl_pro=pxl_pro
         )
-        self.logger.finish()
+
         return results, best_results

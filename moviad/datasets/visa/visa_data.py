@@ -9,6 +9,7 @@ import numpy as np
 from PIL import ImageEnhance
 from pandas.core.interchange.dataframe_protocol import DataFrame
 
+from moviad.backbones.micronet.utils import compute_mask_contamination
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import Split
@@ -45,6 +46,18 @@ class VisaData:
     meta: DataFrame
     data: List[VisaImageData]
     images: List[DatasetImageEntry] = None
+
+    def compute_contamination_ratio(self) -> float:
+        if self.images is None:
+            raise ValueError("Images not loaded.")
+
+        contaminated_samples = [image for image in self.images if image.label == VisaAnomalyClass.ANOMALY]
+        total_contamination_ratio = 0.0
+
+        for image in contaminated_samples:
+            total_contamination_ratio += compute_mask_contamination(image.mask)
+
+        return total_contamination_ratio / len(contaminated_samples)
 
     def load_images(self, img_root_dir: str, split: Split) -> None:
         self.images = []

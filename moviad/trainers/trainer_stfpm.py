@@ -312,7 +312,7 @@ def train_param_grid_search(params=default_params, logger=None):
                         params["train_dataset"],
                         config,
                         params["batch_size"],
-                        params["backbone_model_name"],
+                        params["backbone"],
                         params["device"],
                         params["img_input_size"],
                         params["img_output_size"],

@@ -95,6 +95,7 @@ class TrainingArguments:
     visual_test_path: str
     device: torch.device
     seed: int
+    batch_size: int
     model_checkpoint_path: str = None
 
 def get_stfpm_test_args():
@@ -133,5 +134,6 @@ def get_training_args():
         visual_test_path=VISUAL_TEST_PATH,
         device=DEVICE,
         seed=SEED,
+        batch_size=4,
         model_checkpoint_path=MODEL_CHECKPOINT_PATH
     )

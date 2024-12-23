@@ -47,7 +47,7 @@ class RealIadClass(Enum):
     HAZELNUT = "hazelnut"
     LEATHER = "leather"
     METAL_NUT = "metal_nut"
-    PILL = "pill"
+    VCPILL = "vcpill"
     SCREW = "screw"
     TILE = "tile"
     TOOTHBRUSH = "toothbrush"

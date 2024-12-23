@@ -1,19 +1,43 @@
 import os
+from dataclasses import dataclass, field
 from glob import glob
+from typing import Optional, List, Any
 
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+from moviad.datasets.common import IadDataset
 from moviad.models.stfpm.stfpm import Stfpm
 from moviad.trainers.trainer_stfpm import train_param_grid_search
 from moviad.utilities.evaluator import Evaluator, append_results
 from tests.main.common import StfpmTrainingParams, StfpmTestParams
 
+@dataclass
+class STFPMArgs:
+    train_dataset: IadDataset = None
+    test_dataset: IadDataset  = None
+    epochs: int = 10
+    categories: list[str] = None
+    backbone: str = None
+    contamination_ratio: float = 0.0
+    # Default Arguments
+    batch_size: int = 4  # Default batch size
+    device: torch.device = None  # Example: torch.device or str
+    save_path: str = None  # Default save path (no path by default)
+    model_checkpoint_path: str = None  # Path for loading a model checkpoint
+    visual_test_path: str = None  # Path for saving visual test outputs
+    ad_layers: List[int | str] = field(default_factory=list)
+    img_input_size: tuple[int, int] = (224, 224)
+    img_output_size: tuple[int, int] = (224, 224)
+    early_stopping: float = False
+    checkpoint_dir = "./checkpoints"
+    normalize_dataset: bool = True
 
-def train_stfpm(params: StfpmTrainingParams, logger = None) -> None:
+
+def train_stfpm(params: STFPMArgs, logger = None) -> None:
     ad_model = "stfpm"
     print(f"Training with params: {params}")
-    params.epochs = [params.epochs] * len(params.ad_layers)
+    params.epochs = params.epochs * len(params.ad_layers)
     trained_models_filepaths = train_param_grid_search(params.__dict__, logger)
 
     m = "\n".join(trained_models_filepaths)

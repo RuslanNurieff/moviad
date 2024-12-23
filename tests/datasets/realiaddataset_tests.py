@@ -167,6 +167,10 @@ class RealIadTestDatasetTests(unittest.TestCase):
         self.assertEqual(contamination_size, abs(initial_test_size - self.test_dataset.__len__()))
         self.assertEqual(contamination_size, len(contaminated_entries))
 
+        contamination_ratio = self.train_dataset.compute_contamination_ratio()
+        self.assertLess(contamination_ratio, 1.0)
+        self.assertGreater(contamination_ratio, 0.0)
+
 
 if __name__ == '__main__':
     unittest.main()

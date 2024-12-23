@@ -40,6 +40,11 @@ class RealIadDataset(IadDataset):
         self.split = split
         self.gt_mask_size = gt_mask_size
 
+    def compute_contamination_ratio(self) -> float:
+        if self.data is None:
+            raise ValueError("Dataset is not loaded")
+
+        return self.data.compute_contamination_ratio()
     def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
         if type(source) != RealIadDataset:
             raise ValueError("Dataset should be of type RealIadDataset")

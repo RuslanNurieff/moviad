@@ -38,6 +38,8 @@ class MvTecDatasetTests(unittest.TestCase):
         self.assertEqual(contamination_size, abs(initial_test_len - self.test_dataset.__len__()))
         self.assertEqual(contamination_size, len(contaminated_entries))
         contamintation_ratio = self.training_dataset.compute_contamination_ratio()
+        self.assertLess(contamintation_ratio, 1.0)
+        self.assertGreater(contamintation_ratio, 0.0)
 
 
 if __name__ == '__main__':
