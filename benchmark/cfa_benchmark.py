@@ -51,8 +51,10 @@ class CfaBenchmark(unittest.TestCase):
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.category
+        self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)
+            self.contamination = self.args.train_dataset.compute_contamination_ratio()
         for backbone, ad_layers in backbones.items():
             self.args.backbone = backbone
             self.args.ad_layers = ad_layers
@@ -64,7 +66,8 @@ class CfaBenchmark(unittest.TestCase):
                 "backbone": self.args.backbone,
                 "ad_layers": self.args.ad_layers,
                 "seed": self.seed,
-                "contamination_ratio": self.args.contamination_ratio
+                "contamination_ratio": self.args.contamination_ratio,
+                "contamination": self.contamination
             }, allow_val_change=True)
             self.logger.tags = ["cfa", type(self.args.train_dataset).__name__, self.args.backbone]
             if self.args.contamination_ratio > 0:
@@ -79,8 +82,10 @@ class CfaBenchmark(unittest.TestCase):
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.class_name
+        self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)
+            self.contamination = self.args.train_dataset.compute_contamination_ratio()
         for backbone, ad_layers in backbones.items():
             self.logger = wandb.init(project="moviad_benchmark", group="cfa")
             self.args.backbone = backbone
@@ -92,7 +97,8 @@ class CfaBenchmark(unittest.TestCase):
                 "backbone": self.args.backbone,
                 "ad_layers": self.args.ad_layers,
                 "seed": self.seed,
-                "contamination_ratio": self.args.contamination_ratio
+                "contamination_ratio": self.args.contamination_ratio,
+                "contamination": self.contamination
             }, allow_val_change=True)
             self.logger.tags = ["cfa", type(self.args.train_dataset).__name__, self.args.backbone]
             if self.args.contamination_ratio > 0:
@@ -107,9 +113,11 @@ class CfaBenchmark(unittest.TestCase):
         self.args.test_dataset = visa_test_dataset
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
-        self.args.category = self.args.train_dataset.category
+        self.args.category = self.args.train_dataset.class_name
+        self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)
+            self.contamination = self.args.train_dataset.compute_contamination_ratio()
         for backbone, ad_layers in backbones.items():
             self.args.backbone = backbone
             self.args.ad_layers = ad_layers
@@ -121,7 +129,8 @@ class CfaBenchmark(unittest.TestCase):
                 "backbone": self.args.backbone,
                 "ad_layers": self.args.ad_layers,
                 "seed": self.seed,
-                "contamination_ratio": self.args.contamination_ratio
+                "contamination_ratio": self.args.contamination_ratio,
+                "contamination": self.contamination
             }, allow_val_change=True)
             self.logger.tags = ["cfa", type(self.args.train_dataset).__name__, self.args.backbone]
             if self.args.contamination_ratio > 0:
