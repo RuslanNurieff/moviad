@@ -110,6 +110,8 @@ def test_stfpm(params: StfpmTrainingParams, logger = None) -> None:
             params.img_output_size,
         )
 
+        torch.cuda.empty_cache()
+
 def visualize_stfpm(params: StfpmTestParams):
     if params.trained_models_filepaths is None:
         trained_models_filepaths = glob(
