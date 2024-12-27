@@ -7,7 +7,7 @@ from torchvision.transforms import transforms, InterpolationMode
 from main_scripts.main_cfa import main_train_cfa, train_cfa_v2, test_cfa_v2
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import TaskType, Split
@@ -61,7 +61,7 @@ class CfaTrainTests(unittest.TestCase):
         self.args.dataset_path = REALIAD_DATASET_PATH
 
         # define training and test datasets
-        train_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+        train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
                                        REAL_IAD_DATASET_PATH,
                                        AUDIO_JACK_DATASET_JSON,
                                        task=TaskType.SEGMENTATION,
@@ -69,7 +69,7 @@ class CfaTrainTests(unittest.TestCase):
                                        image_size=IMAGE_SIZE,
                                        transform=self.transform)
 
-        test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
                                       REAL_IAD_DATASET_PATH,
                                       AUDIO_JACK_DATASET_JSON,
                                       task=TaskType.SEGMENTATION,
@@ -132,7 +132,7 @@ class CfaInferenceTests(unittest.TestCase):
             transforms.ConvertImageDtype(torch.float32),
         ])
 
-        test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
                                       REAL_IAD_DATASET_PATH,
                                       AUDIO_JACK_DATASET_JSON,
                                       task=TaskType.SEGMENTATION,

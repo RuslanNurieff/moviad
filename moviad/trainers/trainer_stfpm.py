@@ -183,14 +183,15 @@ def train_param_grid_step(train_dataset: IadDataset,
                           early_stopping=False,
                           checkpoint_dir="./snapshots",
                           normalize_dataset=True,
-                          logger=None
+                          logger=None,
+                          test_dataset=None
                           ):
     category = config["category"]
+    contamination_ratio = config.get("contamination_ratio", 0.0)
     ad_layers = config["ad_layers"]
-    dataset_path = config["dataset_path"]
     student_bootstrap_layer = config.get("student_bootstrap_layer", None)
     epochs = config["epochs"]
-    log_dirpath = config.get("log_dirpath", None)
+    log_dirpath = config.get("log_dirpath", "./logs")
     seed = config.get("seed", None)
 
 
@@ -202,9 +203,16 @@ def train_param_grid_step(train_dataset: IadDataset,
         torch.manual_seed(seed)
 
     start_time = time.time()
-
     train_dataset.set_category(category)
     train_dataset.load_dataset()
+    if contamination_ratio > 0:
+        if test_dataset is None:
+            raise ValueError("test_dataset must be provided if contamination_ratio > 0")
+        test_dataset.set_category(category)
+        test_dataset.load_dataset()
+        train_dataset.contaminate(test_dataset, contamination_ratio)
+        contamination = train_dataset.compute_contamination_ratio()
+        print(f"Training dataset contamination: {contamination}")
 
     train_dataset, val_dataset = train_test_split(
         train_dataset, test_size=0.2, random_state=seed
@@ -305,8 +313,8 @@ def train_param_grid_search(params=default_params, logger=None):
                         "seed": seed,
                         "batch_size": params["batch_size"],
                         "student_bootstrap_layer": boot_layer,
-                        "dataset_path": params["dataset_path"],
                         "log_dirpath": params["log_dirpath"],
+                        "contamination_ratio": params["contamination_ratio"],
                     }
                     log, snapshot_path = train_param_grid_step(
                         params["train_dataset"],
@@ -319,7 +327,8 @@ def train_param_grid_search(params=default_params, logger=None):
                         params["early_stopping"],
                         params["checkpoint_dir"],
                         params["normalize_dataset"],
-                        logger
+                        logger,
+                        params["test_dataset"]
                     )
                     trained_models_filepaths.append(snapshot_path)
                     if params["log_dirpath"] is not None:

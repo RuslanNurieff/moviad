@@ -1,4 +1,3 @@
-
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.utilities.configurations import TaskType, Split
@@ -15,7 +14,7 @@ from main_scripts.main_padim import main_train_padim
 from main_scripts.main_patchcore import IMAGE_SIZE
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum, REAL_IAD_CATEGORIES_JSONS
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.entrypoints.cfa import train_cfa
@@ -25,6 +24,8 @@ from tests.datasets.realiaddataset_tests import REAL_IAD_DATASET_PATH, AUDIO_JAC
 from tests.main.common import TrainingArguments, get_training_args, MVTECH_DATASET_PATH
 import shutil
 
+REAL_IAD_JSON_ROOT_PATH = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/'
+
 backbones = {
     "mobilenet_v2": ["features.4", "features.7", "features.10"],
     "wide_resnet50_2": ["layer1", "layer2", "layer3"],
@@ -33,7 +34,6 @@ backbones = {
     "mcunet-in3": [3, 6, 9],
     "resnet18": ["layer1", "layer2", "layer3"]
 }
-
 
 IMAGE_SIZE = (224, 224)
 
@@ -54,9 +54,9 @@ mvtec_test_dataset = MVTecDataset(
     gt_mask_size=IMAGE_SIZE,
 )
 
-real_iad_train_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+real_iad_train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
                                         REAL_IAD_DATASET_PATH,
-                                        AUDIO_JACK_DATASET_JSON,
+                                        REAL_IAD_JSON_ROOT_PATH,
                                         task=TaskType.SEGMENTATION,
                                         split=Split.TRAIN,
                                         image_size=IMAGE_SIZE,
@@ -71,9 +71,9 @@ real_iad_train_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
                                             transforms.ConvertImageDtype(torch.float32)
                                         ]))
 
-real_iad_test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+real_iad_test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
                                        REAL_IAD_DATASET_PATH,
-                                       AUDIO_JACK_DATASET_JSON,
+                                       REAL_IAD_JSON_ROOT_PATH,
                                        task=TaskType.SEGMENTATION,
                                        split=Split.TEST,
                                        image_size=IMAGE_SIZE,
@@ -91,7 +91,7 @@ real_iad_test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
 
 visa_train_dataset = VisaDataset(VISA_DATASET_PATH,
                                  VISA_DATASET_CSV_PATH,
-                                 Split.TRAIN, VisaDatasetCategory.pipe_fryum,
+                                 Split.TRAIN, VisaDatasetCategory.pcb2.value,
                                  gt_mask_size=IMAGE_SIZE,
                                  transform=transforms.Compose([
                                      transforms.Resize(IMAGE_SIZE),
@@ -106,7 +106,7 @@ visa_train_dataset = VisaDataset(VISA_DATASET_PATH,
 
 visa_test_dataset = VisaDataset(VISA_DATASET_PATH,
                                 VISA_DATASET_CSV_PATH,
-                                Split.TEST, VisaDatasetCategory.pipe_fryum,
+                                Split.TEST, VisaDatasetCategory.pcb2.value,
                                 gt_mask_size=IMAGE_SIZE,
                                 transform=transforms.Compose([
                                     transforms.Resize(IMAGE_SIZE),

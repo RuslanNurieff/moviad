@@ -10,7 +10,7 @@ from PIL import ImageEnhance
 from pandas.core.interchange.dataframe_protocol import DataFrame
 
 from moviad.backbones.micronet.utils import compute_mask_contamination
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum, RealIadAnomalyClass
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import Split
 

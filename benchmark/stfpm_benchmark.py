@@ -2,24 +2,19 @@ import unittest
 import torch
 import wandb
 from torchvision.transforms import transforms, InterpolationMode
-import tempfile
 
 from benchmark_common import mvtec_train_dataset, mvtec_test_dataset, backbones, real_iad_test_dataset, \
     real_iad_train_dataset, visa_train_dataset, visa_test_dataset
-from datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
-from main_scripts.main_padim import main_train_padim
 from main_scripts.main_patchcore import IMAGE_SIZE
-from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
-from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
-from moviad.datasets.visa.visa_dataset import VisaDataset
-from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
-from moviad.entrypoints.stfpm import train_stfpm, test_stfpm, STFPMArgs
-from moviad.entrypoints.padim import train_padim
-from moviad.utilities.configurations import TaskType, Split
-from tests.datasets.realiaddataset_tests import REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON
-from tests.main.common import TrainingArguments, get_training_args, MVTECH_DATASET_PATH, get_stfpm_train_args
-import shutil
+from moviad.entrypoints.stfpm import train_stfpm, STFPMArgs
+
+backbones = {
+    "mobilenet_v2": [[8, 9], [10, 11, 12]],
+    "wide_resnet50_2": [[3, 4, 5], [6, 7, 8]],
+    "phinet_1.2_0.5_6_downsampling": [[2, 6, 7], [8, 9, 10]],
+    "micronet-m1": [[2, 4, 5], [6, 8, 9]],
+    "mcunet-in3": [[3, 6, 9], [12, 15, 18]],
+}
 
 
 class StfpmBenchmark(unittest.TestCase):
@@ -31,6 +26,7 @@ class StfpmBenchmark(unittest.TestCase):
         self.args.contamination_ratio = 0.2
         self.args.batch_size = 4
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.args.seeds = [self.seed]
 
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
@@ -50,7 +46,7 @@ class StfpmBenchmark(unittest.TestCase):
         self.args.test_dataset = mvtec_test_dataset
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
-        self.args.category = self.args.train_dataset.category
+        self.args.categories = [self.args.train_dataset.category]
         self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)
@@ -62,7 +58,7 @@ class StfpmBenchmark(unittest.TestCase):
             self.logger.config.update({
                 "ad_model": "stfpm",
                 "dataset": type(self.args.train_dataset).__name__,
-                "category": self.args.category,
+                "category": self.args.categories,
                 "backbone": self.args.backbone,
                 "ad_layers": self.args.ad_layers,
                 "seed": self.seed,
@@ -81,7 +77,7 @@ class StfpmBenchmark(unittest.TestCase):
         self.args.test_dataset = real_iad_test_dataset
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
-        self.args.category = self.args.train_dataset.class_name
+        self.args.categories = [self.args.train_dataset.class_name]
         self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)
@@ -93,7 +89,7 @@ class StfpmBenchmark(unittest.TestCase):
             self.logger.config.update({
                 "ad_model": "stfpm",
                 "dataset": type(self.args.train_dataset).__name__,
-                "category": self.args.category,
+                "category": self.args.categories,
                 "backbone": self.args.backbone,
                 "ad_layers": self.args.ad_layers,
                 "seed": self.seed,
@@ -112,7 +108,7 @@ class StfpmBenchmark(unittest.TestCase):
         self.args.test_dataset = visa_test_dataset
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
-        self.args.category = self.args.train_dataset.class_name
+        self.args.categories = [self.args.train_dataset.class_name]
         self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)
@@ -124,7 +120,7 @@ class StfpmBenchmark(unittest.TestCase):
             self.logger.config.update({
                 "ad_model": "stfpm",
                 "dataset": type(self.args.train_dataset).__name__,
-                "category": self.args.category,
+                "category": self.args.categories,
                 "backbone": self.args.backbone,
                 "ad_layers": self.args.ad_layers,
                 "seed": self.seed,

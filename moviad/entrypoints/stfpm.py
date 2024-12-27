@@ -16,11 +16,10 @@ from tests.main.common import StfpmTrainingParams, StfpmTestParams
 class STFPMArgs:
     train_dataset: IadDataset = None
     test_dataset: IadDataset  = None
-    epochs: int = 10
+    epochs = [10]
     categories: list[str] = None
     backbone: str = None
     contamination_ratio: float = 0.0
-    # Default Arguments
     batch_size: int = 4  # Default batch size
     device: torch.device = None  # Example: torch.device or str
     save_path: str = None  # Default save path (no path by default)
@@ -31,14 +30,43 @@ class STFPMArgs:
     img_output_size: tuple[int, int] = (224, 224)
     early_stopping: float = False
     checkpoint_dir = "./checkpoints"
+    log_dirpath = "./logs"
     normalize_dataset: bool = True
+    student_bootstrap_layer = [0]
+    seeds = [3]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "train_dataset": self.train_dataset,
+            "test_dataset": self.test_dataset,
+            "epochs": self.epochs,
+            "categories": self.categories,
+            "backbone": self.backbone,
+            "backbone_model_name": self.backbone,
+            "contamination_ratio": self.contamination_ratio,
+            "batch_size": self.batch_size,
+            "device": self.device,
+            "save_path": self.save_path,
+            "model_checkpoint_path": self.model_checkpoint_path,
+            "visual_test_path": self.visual_test_path,
+            "ad_layers": self.ad_layers,
+            "img_input_size": self.img_input_size,
+            "img_output_size": self.img_output_size,
+            "early_stopping": self.early_stopping,
+            "checkpoint_dir": self.checkpoint_dir,
+            "log_dirpath": self.log_dirpath,
+            "normalize_dataset": self.normalize_dataset,
+            "student_bootstrap_layer": self.student_bootstrap_layer,
+            "seeds": self.seeds,
+        }
+    
 
 
 def train_stfpm(params: STFPMArgs, logger = None) -> None:
     ad_model = "stfpm"
     print(f"Training with params: {params}")
     params.epochs = params.epochs * len(params.ad_layers)
-    trained_models_filepaths = train_param_grid_search(params.__dict__, logger)
+    trained_models_filepaths = train_param_grid_search(params.to_dict(), logger)
 
     m = "\n".join(trained_models_filepaths)
     print(f"Trained models:{m}")

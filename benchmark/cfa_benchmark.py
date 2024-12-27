@@ -12,7 +12,7 @@ from main_scripts.main_padim import main_train_padim
 from main_scripts.main_patchcore import IMAGE_SIZE
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.entrypoints.cfa import train_cfa, CFAArguments, test_cfa
@@ -28,15 +28,15 @@ class CfaBenchmark(unittest.TestCase):
         self.epoch = 10
         torch.manual_seed(self.seed)
         self.args = CFAArguments()
-        self.args.contamination_ratio = 0.2
+        self.args.contamination_ratio = 0.0
         self.args.batch_size = 4
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         self.transform = transforms.Compose([
-            transforms.Resize((256, 256)),
+            transforms.Resize((224, 224)),
             transforms.PILToTensor(),
             transforms.Resize(
-                (256, 256),
+                (224, 224),
                 antialias=True,
                 interpolation=InterpolationMode.NEAREST,
             ),
@@ -79,6 +79,8 @@ class CfaBenchmark(unittest.TestCase):
     def test_cfa_realiad(self):
         self.args.train_dataset = real_iad_train_dataset
         self.args.test_dataset = real_iad_test_dataset
+        self.args.train_dataset.class_name = RealIadClassEnum.PCB.value
+        self.args.test_dataset.class_name = RealIadClassEnum.PCB.value
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.class_name

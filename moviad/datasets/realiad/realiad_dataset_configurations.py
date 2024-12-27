@@ -36,11 +36,32 @@ anomaly_class_encoding = {
     RealIadAnomalyClass.ZW: 9,
 }
 
+class RealIadCategory:
+    value: str
+    json_path: str
 
-class RealIadClass(Enum):
+
+REAL_IAD_CATEGORIES_JSONS = {
+    "audiojack": "audiojack.json",
+    "bottle": "bottle.json",
+    "cable": "cable.json",
+    "capsule": "capsule.json",
+    "carpet": "carpet.json",
+    "grid": "grid.json",
+    "hazelnut": "hazelnut.json",
+    "leather": "leather.json",
+    "metal_nut": "metal_nut.json",
+    "vcpill": "vcpill.json",
+    "screw": "screw.json",
+    "tile": "tile.json",
+    "toothbrush": "toothbrush.json",
+}
+
+class RealIadClassEnum(Enum):
     AUDIOJACK = "audiojack"
     BOTTLE = "bottle"
     CABLE = "cable"
+    PCB = "pcb"
     CAPSULE = "capsule"
     CARPET = "carpet"
     GRID = "grid"

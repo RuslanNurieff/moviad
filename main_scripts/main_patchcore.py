@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from moviad.common.common_utils import obsolete
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
-from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClass
+from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClassEnum
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.trainers.trainer_patchcore import TrainerPatchCore

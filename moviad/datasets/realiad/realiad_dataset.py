@@ -15,12 +15,12 @@ from pathlib import Path
 
 from moviad.datasets.common import IadDataset
 from moviad.datasets.realiad.realiad_data import RealIadData
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum, RealIadAnomalyClass
 from moviad.utilities.configurations import TaskType, Split, LabelName
 
 
 class RealIadDataset(IadDataset):
-    def __init__(self, class_name: RealIadClass, img_root_dir: str, json_path: str, task: TaskType, split: Split,
+    def __init__(self, class_name: str, img_root_dir: str, json_root_path: str, task: TaskType, split: Split,
                  gt_mask_size: Optional[tuple] = None,
                  transform=None,
                  image_size=(224, 224)) -> None:
@@ -31,7 +31,7 @@ class RealIadDataset(IadDataset):
             raise ValueError(f"img_dir '{img_root_dir}' does not exist")
         if not os.path.isdir(img_root_dir):
             raise ValueError(f"img_dir '{img_root_dir}' is not a directory")
-        self.json = json_path
+        self.json_root_path = json_root_path
         self.img_root_dir = img_root_dir
         self.transform = transform
         self.class_name = class_name
@@ -45,6 +45,7 @@ class RealIadDataset(IadDataset):
             raise ValueError("Dataset is not loaded")
 
         return self.data.compute_contamination_ratio()
+
     def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
         if type(source) != RealIadDataset:
             raise ValueError("Dataset should be of type RealIadDataset")
@@ -52,17 +53,21 @@ class RealIadDataset(IadDataset):
             raise ValueError("Destination dataset is not loaded")
         if source.data is None or source.data.data is None:
             raise ValueError("Source dataset is not loaded")
-        
+
         torch.manual_seed(seed)
         contamination_set_size = int(math.floor(len(self.data) * ratio))
-        contaminated_data_entries = [entry for entry in source.data.data if entry.anomaly_class != RealIadAnomalyClass.OK]
-        contaminated_image_entries = [image for image in source.data.images if image.anomaly_class != RealIadAnomalyClass.OK]
+        contaminated_data_entries = [entry for entry in source.data.data if
+                                     entry.anomaly_class != RealIadAnomalyClass.OK]
+        contaminated_image_entries = [image for image in source.data.images if
+                                      image.anomaly_class != RealIadAnomalyClass.OK]
         if len(contaminated_data_entries) < contamination_set_size:
             raise ValueError(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
                              f"Found {len(contaminated_data_entries)} entries, but needed {contamination_set_size} entries")
 
-        contaminated_data_entries = np.random.choice(contaminated_data_entries, contamination_set_size, replace=False).tolist()
-        contaminated_image_entries = np.random.choice(contaminated_image_entries, contamination_set_size, replace=False).tolist()
+        contaminated_data_entries = np.random.choice(contaminated_data_entries, contamination_set_size,
+                                                     replace=False).tolist()
+        contaminated_image_entries = np.random.choice(contaminated_image_entries, contamination_set_size,
+                                                      replace=False).tolist()
         self.data.data.extend(contaminated_data_entries)
         self.data.images.extend(contaminated_image_entries)
         source.data.data = [entry for entry in source.data.data if entry not in contaminated_data_entries]
@@ -80,7 +85,7 @@ class RealIadDataset(IadDataset):
         return dataset_1, dataset_2
 
     def load_dataset(self) -> None:
-        self.data = RealIadData.from_json(self.json, self.class_name, self.split)
+        self.data = RealIadData.from_json(self.json_root_path, self.class_name, self.split)
         if self.data is None:
             raise ValueError("Dataset is None")
 

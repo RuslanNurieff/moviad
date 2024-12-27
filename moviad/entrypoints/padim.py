@@ -91,6 +91,7 @@ def train_padim(args: PadimArgs, logger=None) -> None:
 
 
 def test_padim(args: PadimArgs, logger=None) -> None:
+
     padim = Padim(
         args.backbone,
         args.category,

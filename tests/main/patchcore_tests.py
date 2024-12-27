@@ -11,7 +11,7 @@ from main_scripts.main_patchcore import train_patchcore, test_patchcore, train_p
     train_patchcore, IMAGE_SIZE, REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON, test_patchcore
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.utilities.configurations import TaskType, Split
 from tests.main.common import TrainingArguments
 
@@ -62,7 +62,7 @@ class PatchCoreTrainTests(unittest.TestCase):
     def test_patchcore_train_with_realiad_dataset(self):
         self.args.dataset_path = REALIAD_DATASET_PATH
 
-        train_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+        train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
                                        self.args.dataset_path,
                                        AUDIO_JACK_DATASET_JSON,
                                        task=TaskType.SEGMENTATION,
@@ -70,7 +70,7 @@ class PatchCoreTrainTests(unittest.TestCase):
                                        image_size=IMAGE_SIZE,
                                        transform=transform)
 
-        test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
                                       self.args.dataset_path,
                                       AUDIO_JACK_DATASET_JSON,
                                       task=TaskType.SEGMENTATION,
@@ -108,7 +108,7 @@ class PatchCoreInferenceTests(unittest.TestCase):
 
     def test_patchcore_inference_with_realiad_dataset(self):
         self.args.dataset_path = REALIAD_DATASET_PATH
-        test_dataset = RealIadDataset(RealIadClass.AUDIOJACK,
+        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
                                       self.args.dataset_path,
                                       AUDIO_JACK_DATASET_JSON,
                                       task=TaskType.SEGMENTATION,

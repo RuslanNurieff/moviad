@@ -6,7 +6,7 @@ import numpy as np
 import PIL.Image as Image
 
 from moviad.backbones.micronet.utils import compute_mask_contamination
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass, RealIadAnomalyClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum, RealIadAnomalyClass
 from moviad.utilities.configurations import Split
 
 import json
@@ -21,7 +21,7 @@ class MetaData:
 
 @dataclass
 class ImageData:
-    category: RealIadClass
+    category: str
     anomaly_class: RealIadAnomalyClass
     image_path: str
     mask_path: Optional[str]  # mask_path may be None
@@ -31,7 +31,7 @@ class ImageData:
 class DatasetImageEntry:
     image: Image
     mask: Image
-    category: RealIadClass
+    category: RealIadClassEnum
     anomaly_class: RealIadAnomalyClass
 
 
@@ -40,16 +40,16 @@ class RealIadData:
     meta: MetaData
     data: List[ImageData]
     images: List[DatasetImageEntry] = None
-    class_name: RealIadClass = None
+    class_name: str = None
 
     @staticmethod
-    def from_json(json_path: str, class_name: RealIadClass, split: Split) -> 'RealIadData':
-        with open(json_path, 'r') as f:
+    def from_json(json_path: str, class_name: str, split: Split) -> 'RealIadData':
+        with open(os.path.join(json_path, class_name + '.json'), 'r') as f:
             data = json.load(f)
 
         meta = MetaData(**data["meta"])
         data = [
-            ImageData(category=RealIadClass(item["category"]), anomaly_class=RealIadAnomalyClass(item["anomaly_class"]),
+            ImageData(category=item["category"], anomaly_class=RealIadAnomalyClass(item["anomaly_class"]),
                       image_path=item["image_path"], mask_path=item.get("mask_path")) for item in data[split.value]]
 
         data = [item for item in data if item.category == class_name]
@@ -83,7 +83,7 @@ class RealIadData:
         masks_not_found = []
 
         for image_entry in self.data:
-            class_image_root_path = os.path.join(img_root_dir, self.class_name.value)
+            class_image_root_path = os.path.join(img_root_dir, self.class_name)
             img_path = Path(os.path.join(class_image_root_path, image_entry.image_path))
             if not os.path.exists(img_path):
                 images_not_found.append(img_path)

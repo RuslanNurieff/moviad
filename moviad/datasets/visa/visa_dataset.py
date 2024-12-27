@@ -13,11 +13,11 @@ class VisaDataset(IadDataset):
     root_path: str
     csv_path: str
     split: Split
-    class_name: VisaDatasetCategory
+    class_name: str
     data: VisaData
     transform: None
 
-    def __init__(self, root_path: str, csv_path: str, split: Split, class_name: VisaDatasetCategory,
+    def __init__(self, root_path: str, csv_path: str, split: Split, class_name: str,
                  gt_mask_size: Optional[tuple] = None, transform=None):
         self.root_path = root_path
         self.csv_path = csv_path
@@ -27,8 +27,8 @@ class VisaDataset(IadDataset):
         self.gt_mask_size = gt_mask_size
         self.dataframe = pd.read_csv(csv_path)
         self.dataframe = self.dataframe[self.dataframe["split"] == split.value]
-        self.dataframe = self.dataframe[self.dataframe["object"] == class_name.value]
-        self.category = class_name.value
+        self.dataframe = self.dataframe[self.dataframe["object"] == class_name]
+        self.category = class_name
 
     def set_category(self, category: str):
         self.category = category

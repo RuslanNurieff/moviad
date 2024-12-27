@@ -5,25 +5,17 @@ from torchvision.transforms import transforms, InterpolationMode
 
 from benchmark_common import mvtec_train_dataset, mvtec_test_dataset, real_iad_train_dataset, real_iad_test_dataset, \
     visa_train_dataset, visa_test_dataset
-from datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
-from main.common import TrainingArguments
-from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
-from moviad.datasets.visa.visa_dataset import VisaDataset
-from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
 from moviad.entrypoints.patchcore import train_patchcore, PatchCoreArgs
-from moviad.utilities.configurations import TaskType, Split
-from tests.datasets.realiaddataset_tests import REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON
 
 backbones = {
     "mobilenet_v2": ["features.4", "features.7", "features.10"],
-    "wide_resnet50_2": ["layer1", "layer2", "layer3"],
+    # "wide_resnet50_2": ["layer1", "layer2", "layer3"],
     "phinet_1.2_0.5_6_downsampling": [2, 6, 7],
     "micronet-m1": [2, 4, 5],
     "mcunet-in3": [3, 6, 9],
     "resnet18": ["layer1", "layer2", "layer3"]
 }
+
 
 class PatchCoreBenchmarkContaminated(unittest.TestCase):
     def setUp(self):
@@ -32,7 +24,7 @@ class PatchCoreBenchmarkContaminated(unittest.TestCase):
         torch.manual_seed(self.seed)
         self.args = PatchCoreArgs()
         self.args.contamination_ratio = 0.2
-        self.args.batch_size = 4
+        self.args.batch_size = 1
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args.img_input_size = (224, 224)
 
@@ -141,6 +133,7 @@ class PatchCoreBenchmarkContaminated(unittest.TestCase):
             self.logger.name = f"patchcore_{type(self.args.train_dataset).__name__}_{self.args.backbone}"
             train_patchcore(self.args, self.logger)
             self.logger.finish()
+
 
 if __name__ == '__main__':
     unittest.main()

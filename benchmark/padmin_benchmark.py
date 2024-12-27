@@ -11,7 +11,7 @@ from datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
 from main_scripts.main_padim import main_train_padim
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClass
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.entrypoints.padim import train_padim, PadimArgs
@@ -23,7 +23,7 @@ from tests.main.common import TrainingArguments, get_training_args, MVTECH_DATAS
 
 backbones = {
     "mobilenet_v2": ["features.4", "features.7", "features.10"],
-    # "wide_resnet50_2": ["layer1", "layer2", "layer3"],
+    "wide_resnet50_2": ["layer1", "layer2", "layer3"],
     "phinet_1.2_0.5_6_downsampling": [2, 6, 7],
     "micronet-m1": [2, 4, 5],
     "mcunet-in3": [3, 6, 9],
@@ -144,9 +144,6 @@ class PadimBenchmark(unittest.TestCase):
             self.logger.name = f"padim_{type(self.args.train_dataset).__name__}_{self.args.backbone}"
             train_padim(self.args, self.logger)
             self.logger.finish()
-
-
-
 
 if __name__ == '__main__':
     unittest.main()

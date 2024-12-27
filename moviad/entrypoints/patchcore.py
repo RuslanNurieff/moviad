@@ -12,7 +12,7 @@ from tqdm import tqdm
 from moviad.common.common_utils import obsolete
 from moviad.datasets.common import IadDataset
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
-from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClass
+from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClassEnum
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
@@ -65,8 +65,6 @@ def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
 
     # force garbage collector in case
     del patchcore
-    del args.test_dataset
-    del args.train_dataset
     del train_dataloader
     del test_dataloader
     torch.cuda.empty_cache()
