@@ -343,6 +343,8 @@ class PatchCore(nn.Module):
 
         state_dict = torch.load(path)
 
+        ## TODO: MemoryBank quantization
+
         if "memory_bank" not in state_dict.keys():
             raise RuntimeError("Memory Bank tensor not in model checkpoint")
 

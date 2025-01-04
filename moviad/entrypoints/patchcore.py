@@ -42,12 +42,10 @@ class PatchCoreArgs:
 def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
     # initialize the feature extractor
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)
-    print(f"Training Pathcore for category: {args.category} \n")
-    print(f"Length train dataset: {len(args.train_dataset)}")
+
     train_dataloader = torch.utils.data.DataLoader(args.train_dataset, batch_size=args.batch_size, shuffle=True,
                                                    drop_last=True)
 
-    print(f"Length test dataset: {len(args.test_dataset)}")
     test_dataloader = torch.utils.data.DataLoader(args.test_dataset, batch_size=args.batch_size, shuffle=True,
                                                   drop_last=True)
 
