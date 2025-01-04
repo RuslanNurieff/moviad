@@ -5,7 +5,6 @@ from torchvision.transforms import transforms, InterpolationMode
 
 from benchmark_common import mvtec_train_dataset, mvtec_test_dataset, real_iad_train_dataset, real_iad_test_dataset, \
     visa_train_dataset, visa_test_dataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.entrypoints.patchcore import train_patchcore, PatchCoreArgs
 
 backbones = {
@@ -24,7 +23,7 @@ class PatchCoreBenchmarkContaminated(unittest.TestCase):
         self.epoch = 10
         torch.manual_seed(self.seed)
         self.args = PatchCoreArgs()
-        self.args.contamination_ratio = 0.2
+        self.args.contamination_ratio = 0.25
         self.args.batch_size = 1
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args.img_input_size = (224, 224)
@@ -76,8 +75,8 @@ class PatchCoreBenchmarkContaminated(unittest.TestCase):
     def test_patchcore_realiad(self):
         self.args.train_dataset = real_iad_train_dataset
         self.args.test_dataset = real_iad_test_dataset
-        self.args.train_dataset.class_name = RealIadClassEnum.PHONE_BATTERY.value
-        self.args.test_dataset.class_name = RealIadClassEnum.PHONE_BATTERY.value
+        self.args.train_dataset.class_name = "pcb"
+        self.args.test_dataset.class_name = "pcb"
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.class_name
