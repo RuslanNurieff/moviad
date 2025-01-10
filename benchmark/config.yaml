@@ -1,0 +1,12 @@
+settings:
+  debug: true
+
+datasets:
+    realiad:
+        root_path: 'E:\VisualAnomalyDetection\datasets\Real-IAD\realiad_256'
+        json_root_path: 'E:\VisualAnomalyDetection\datasets\Real-IAD\realiad_jsons'
+    visa:
+        root_path: 'E:\VisualAnomalyDetection\datasets\visa'
+        csv_path: 'E:\VisualAnomalyDetection\datasets\visa\split_csv\1cls.csv'
+    mvtec:
+        root_path: 'E:\VisualAnomalyDetection\datasets\mvtec'
