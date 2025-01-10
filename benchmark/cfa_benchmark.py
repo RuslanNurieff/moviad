@@ -79,8 +79,8 @@ class CfaBenchmark(unittest.TestCase):
     def test_cfa_realiad(self):
         self.args.train_dataset = real_iad_train_dataset
         self.args.test_dataset = real_iad_test_dataset
-        self.args.train_dataset.class_name = RealIadClassEnum.PCB.value
-        self.args.test_dataset.class_name = RealIadClassEnum.PCB.value
+        self.args.train_dataset.class_name = RealIadClassEnum.TOY.value
+        self.args.test_dataset.class_name = RealIadClassEnum.TOY.value
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.class_name
