@@ -5,8 +5,9 @@ from torchvision.transforms import transforms, InterpolationMode
 
 from benchmark_common import mvtec_train_dataset, mvtec_test_dataset, backbones, real_iad_test_dataset, \
     real_iad_train_dataset, visa_train_dataset, visa_test_dataset
+from main.common import INPUT_SIZES
 from main_scripts.main_patchcore import IMAGE_SIZE
-from moviad.entrypoints.stfpm import train_stfpm, STFPMArgs
+from moviad.entrypoints.stfpm import train_stfpm, STFPMArgs, test_stfpm
 
 backbones = {
     "mobilenet_v2": [[8, 9], [10, 11, 12]],
@@ -20,11 +21,12 @@ backbones = {
 class StfpmBenchmark(unittest.TestCase):
     def setUp(self):
         self.seed = 3
-        self.epoch = 10
+        self.epoch = 1
         torch.manual_seed(self.seed)
         self.args = STFPMArgs()
-        self.args.contamination_ratio = 0.2
+        self.args.contamination_ratio = 0.1
         self.args.batch_size = 4
+        self.args.input_sizes = INPUT_SIZES
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args.seeds = [self.seed]
 
@@ -70,6 +72,7 @@ class StfpmBenchmark(unittest.TestCase):
                 self.logger.tags += tuple(["contaminated"])
             self.logger.name = f"stfpm_{type(self.args.train_dataset).__name__}_{self.args.backbone}"
             train_stfpm(self.args, self.logger)
+            test_stfpm(self.args, self.logger)
             self.logger.finish()
 
     def test_stfpm_realiad(self):
