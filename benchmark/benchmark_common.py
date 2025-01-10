@@ -1,3 +1,4 @@
+from benchmark_config import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.utilities.configurations import TaskType, Split
@@ -24,7 +25,9 @@ from tests.datasets.realiaddataset_tests import REAL_IAD_DATASET_PATH, AUDIO_JAC
 from tests.main.common import TrainingArguments, get_training_args, MVTECH_DATASET_PATH
 import shutil
 
-REAL_IAD_JSON_ROOT_PATH = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/'
+config = DatasetConfig('./config.yaml')
+
+REAL_IAD_JSON_ROOT_PATH = config.realiad_json_root_path
 
 backbones = {
     "mobilenet_v2": ["features.4", "features.7", "features.10"],

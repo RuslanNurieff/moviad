@@ -5,6 +5,7 @@ from torchvision.transforms import transforms, InterpolationMode
 
 from benchmark_common import mvtec_train_dataset, mvtec_test_dataset, real_iad_train_dataset, real_iad_test_dataset, \
     visa_train_dataset, visa_test_dataset
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.entrypoints.patchcore import train_patchcore, PatchCoreArgs
 
 backbones = {
@@ -75,6 +76,8 @@ class PatchCoreBenchmarkContaminated(unittest.TestCase):
     def test_patchcore_realiad(self):
         self.args.train_dataset = real_iad_train_dataset
         self.args.test_dataset = real_iad_test_dataset
+        self.args.train_dataset.class_name = RealIadClassEnum.PHONE_BATTERY.value
+        self.args.test_dataset.class_name = RealIadClassEnum.PHONE_BATTERY.value
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.class_name
