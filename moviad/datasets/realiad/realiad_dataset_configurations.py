@@ -58,6 +58,8 @@ REAL_IAD_CATEGORIES_JSONS = {
 }
 
 class RealIadClassEnum(Enum):
+    TOY = "toy"
+    PHONE_BATTERY = "phone_battery"
     AUDIOJACK = "audiojack"
     BOTTLE = "bottle"
     CABLE = "cable"

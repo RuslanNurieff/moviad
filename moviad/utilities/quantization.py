@@ -3,6 +3,7 @@ import torch
 from random import randint
 
 
+
 def quantize_vector(vector: np.array, n_subvectors: int, n_centroids: int) -> np.array:
     """
     This function quantizes a given vector into a quantized vector using product quantization

@@ -1,3 +1,5 @@
+import faiss
+import numpy as np
 import wandb
 import torch
 
@@ -7,7 +9,6 @@ import os
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.patchcore.kcenter_greedy import KCenterGreedy
 from moviad.utilities.evaluator import Evaluator
-from moviad.utilities.quantization import product_quantization
 
 
 class TrainerPatchCore():
@@ -61,8 +62,6 @@ class TrainerPatchCore():
 
                 #print(f"Embedding Shape: {embedding.shape}")
 
-                if self.apply_quantization:
-                    embedding = product_quantization(embedding, 4)
 
                 embeddings.append(embedding)
 
@@ -77,6 +76,12 @@ class TrainerPatchCore():
             sampler = KCenterGreedy(embeddings, self.patchore_model.feature_extractor.quantized, self.device)
             sampled_idxs = sampler.get_coreset_idx_randomp(embeddings.cpu())
             coreset = embeddings[sampled_idxs]
+
+            if self.apply_quantization:
+                self.patchore_model.product_quantizer.fit(coreset)
+                coreset = self.patchore_model.product_quantizer.encode(coreset)
+                coreset = torch.tensor(coreset).to(self.device)
+
 
             self.patchore_model.memory_bank = coreset
 
