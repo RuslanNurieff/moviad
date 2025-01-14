@@ -56,7 +56,7 @@ class PatchCore(nn.Module):
 
         self.register_buffer("memory_bank", Tensor())
         self.memory_bank: Tensor
-
+        self.apply_quantization = apply_quantization
         if apply_quantization:
             self.product_quantizer = ProductQuantizer()
 
@@ -210,7 +210,8 @@ class PatchCore(nn.Module):
             Tensor: Locations of the nearest neighbor(s).
         """
         memory_bank = self.memory_bank
-        if self.product_quantizer is not None:
+        if self.apply_quantization:
+            assert self.product_quantizer is not None
             memory_bank = self.product_quantizer.decode(memory_bank)
             memory_bank = memory_bank.to(self.device)
 
@@ -236,7 +237,8 @@ class PatchCore(nn.Module):
             Tensor: Image-level anomaly scores
         """
         memory_bank = self.memory_bank
-        if self.product_quantizer is not None:
+        if self.apply_quantization:
+            assert self.product_quantizer is not None
             memory_bank = self.product_quantizer.decode(memory_bank)
             memory_bank = memory_bank.to(self.device)
 

@@ -8,7 +8,6 @@ class ProductQuantizer:
     subspaces: int
     centroids_per_subspace: int = 256
 
-
     def fit(self, input: torch.Tensor | np.ndarray, dim=1) -> None:
         if isinstance(input, torch.Tensor):
             input = input.cpu().numpy()
@@ -53,3 +52,9 @@ class ProductQuantizer:
         suggested_m = 8 if 8 in valid_m else min(valid_m)
 
         return suggested_m
+
+    def save(self, path: str) -> None:
+        faiss.write_index(self.quantizer, path)
+
+    def load(self, path: str) -> None:
+        self.quantizer = faiss.read_index(path)

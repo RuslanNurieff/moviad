@@ -1,8 +1,27 @@
 from __future__ import annotations
+
+import torch
+from sympy.codegen.cnodes import sizeof
 from torch.nn import functional as F
 from sklearn.metrics import *
 import numpy as np
 from skimage.measure import label, regionprops
+
+from moviad.models.patchcore.product_quantizer import ProductQuantizer
+
+
+def compute_product_quantization_efficiency(coreset: np.ndarray, compressed_coreset: np.ndarray, quantizer: ProductQuantizer) -> (float, float):
+    np_array_type = coreset.dtype
+    compressed_np_array_type = compressed_coreset.dtype
+    original_shape = coreset.shape
+    compressed_shape = compressed_coreset.shape
+    original_bitrate = np_array_type.itemsize * 8 * np.prod(original_shape)
+    compressed_bitrate = compressed_np_array_type.itemsize * 8 * np.prod(compressed_shape)
+    compression_efficiency = 1 - compressed_bitrate / original_bitrate
+    dequantized_coreset = quantizer.decode(compressed_coreset).cpu().numpy()
+    distortion = np.mean((coreset-dequantized_coreset)**2)
+    # TODO: Add centroids/index size to the compression efficiency
+    return compression_efficiency, distortion
 
 
 def cal_img_roc(img_scores: np.ndarray, gt_list: list) -> tuple[float, float, float]:
