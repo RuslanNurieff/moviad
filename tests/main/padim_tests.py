@@ -2,27 +2,27 @@ import unittest
 import unittest
 
 import torch
-from torchvision.models import MobileNet_V2_Weights
+from torch.utils.data import DataLoader
 from torchvision.transforms import transforms, InterpolationMode
-
-from main_scripts.main_cfa import main_train_cfa, train_cfa_v2, test_cfa_v2
-from main_scripts.main_padim import main_train_padim, test_padim
+from benchmark_config import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
-from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
-from moviad.datasets.visa.visa_dataset import VisaDataset
-from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
+from moviad.entrypoints.padim import PadimArgs
+from moviad.models.padim.padim import Padim
+from moviad.trainers.trainer_padim import PadimTrainer
 from moviad.utilities.configurations import TaskType, Split
-from tests.datasets.realiaddataset_tests import IMAGE_SIZE, REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON
-from tests.datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
-from tests.main.common import get_training_args, MVTECH_DATASET_PATH, REALIAD_DATASET_PATH
+from moviad.utilities.evaluator import Evaluator
+from tests.datasets.realiaddataset_tests import IMAGE_SIZE
 
 
 
 class PadimTrainTests(unittest.TestCase):
     def setUp(self):
-        self.args = get_training_args()
+        self.config = DatasetConfig("./config.yaml")
+        self.args = PadimArgs()
         self.args.model_checkpoint_path = '.'
+        self.args.backbone = 'mobilenet_v2'
+        self.args.ad_layers = ['features.4', 'features.7', 'features.10']
+        self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor(),
@@ -35,135 +35,137 @@ class PadimTrainTests(unittest.TestCase):
 
         ])
 
-    def test_padim_train_with_mvtec_dataset(self):
-        self.args.dataset_path = MVTECH_DATASET_PATH
+    def test_padim_with_diagonalization(self):
         train_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
-            self.args.dataset_path,
-            self.args.class_name,
+            self.config.mvtec_root_path,
+            'pill',
             Split.TRAIN,
-            img_size=(256, 256),
+            img_size=IMAGE_SIZE,
         )
-
 
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
-            self.args.dataset_path,
-            self.args.class_name,
+            self.config.mvtec_root_path,
+            'pill',
             Split.TEST,
-            img_size=(256, 256),
+            img_size=IMAGE_SIZE,
+            gt_mask_size=IMAGE_SIZE,
         )
 
+        train_dataset.load_dataset()
+        test_dataset.load_dataset()
 
-        main_train_padim(train_dataset, test_dataset, self.args.class_name, self.args.backbone,
-                         self.args.ad_layers, self.args.device, self.args.model_checkpoint_path)
+        padim = Padim(
+            self.args.backbone,
+            self.args.category,
+            device=self.args.device,
+            diag_cov=True,
+            layers_idxs=self.args.ad_layers,
+        )
+        padim.to(self.args.device)
+        trainer = PadimTrainer(
+            model=padim,
+            device=self.args.device,
+            save_path=self.args.model_checkpoint_save_path,
+            data_path=None,
+            class_name=self.args.category,
+            apply_diagonalization=True
+        )
 
-    def test_padim_train_with_realiad_dataset(self):
-        self.args.dataset_path = REALIAD_DATASET_PATH
+        train_dataloader = DataLoader(
+            train_dataset, batch_size=self.args.batch_size, pin_memory=True, drop_last=True
+        )
 
-        # define training and test datasets
-        train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                       REAL_IAD_DATASET_PATH,
-                                       AUDIO_JACK_DATASET_JSON,
-                                       task=TaskType.SEGMENTATION,
-                                       split=Split.TRAIN,
-                                       image_size=IMAGE_SIZE,
-                                       transform=self.transform)
+        trainer.train(train_dataloader, None)
 
-        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                      REAL_IAD_DATASET_PATH,
-                                      AUDIO_JACK_DATASET_JSON,
-                                      task=TaskType.SEGMENTATION,
-                                      split=Split.TEST,
-                                      image_size=IMAGE_SIZE,
-                                      gt_mask_size=IMAGE_SIZE,
-                                      transform=self.transform)
+        # evaluate the model
+        test_dataloader = DataLoader(
+            test_dataset, batch_size=self.args.batch_size, shuffle=True, drop_last=True
+        )
 
-        main_train_padim(train_dataset, test_dataset, 'audiojack', self.args.backbone,
-                         self.args.ad_layers,
-                         self.args.device, self.args.model_checkpoint_path)
+        evaluator = Evaluator(test_dataloader=test_dataloader, device=self.args.device)
 
-
-
-    def test_padim_train_with_visa_dataset(self):
-        self.args.dataset_path = VISA_DATASET_PATH
-
-
-        # define training and test datasets
-        train_dataset = VisaDataset(VISA_DATASET_PATH,
-                                   VISA_DATASET_CSV_PATH,
-                                   Split.TRAIN,
-                                    VisaDatasetCategory.candle,
-                                   transform=self.transform)
-
-        test_dataset = VisaDataset(VISA_DATASET_PATH,
-                                   VISA_DATASET_CSV_PATH,
-                                   Split.TEST, VisaDatasetCategory.candle,
-                                   gt_mask_size=IMAGE_SIZE,
-                                   transform=self.transform)
-
-        main_train_padim(train_dataset, test_dataset, 'candle', self.args.backbone,
-                         self.args.ad_layers,
-                         self.args.device, self.args.model_checkpoint_path)
+        img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
 
 
-class PadimInferenceTests(unittest.TestCase):
-    def setUp(self):
-        self.args = get_training_args()
-        self.args.model_checkpoint_path = '.'
-        self.transform = transforms.Compose([
-            transforms.Resize(IMAGE_SIZE),
-            transforms.PILToTensor(),
-            transforms.ConvertImageDtype(torch.float32),
-        ])
+        print("Evaluation performances:")
+        print(f"""
+                img_roc: {img_roc}
+                pxl_roc: {pxl_roc}
+                f1_img: {f1_img}
+                f1_pxl: {f1_pxl}
+                img_pr: {img_pr}
+                pxl_pr: {pxl_pr}
+                pxl_pro: {pxl_pro}
+                """)
 
-    def test_cfa_inference_with_mvtec_dataset(self):
-        self.args.dataset_path = MVTECH_DATASET_PATH
+    def test_padim_without_diagonalization(self):
+        train_dataset = MVTecDataset(
+            TaskType.SEGMENTATION,
+            self.config.mvtec_root_path,
+            'pill',
+            Split.TRAIN,
+            img_size=IMAGE_SIZE,
+        )
+
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
-            self.args.dataset_path,
-            self.args.class_name,
+            self.config.mvtec_root_path,
+            'pill',
             Split.TEST,
-            img_size=(256, 256),
+            img_size=IMAGE_SIZE,
+            gt_mask_size=IMAGE_SIZE,
         )
 
-        test_padim(test_dataset, self.args.class_name, self.args.backbone,
-                   self.args.ad_layers,
-                   self.args.device, self.args.model_checkpoint_path)
+        train_dataset.load_dataset()
+        test_dataset.load_dataset()
 
-    def test_cfa_inference_with_realiad_dataset(self):
-        transform = transforms.Compose([
-            transforms.Resize(IMAGE_SIZE),
-            transforms.PILToTensor(),
-            transforms.ConvertImageDtype(torch.float32),
-        ])
+        padim = Padim(
+            self.args.backbone,
+            self.args.category,
+            device=self.args.device,
+            diag_cov=self.args.diagonal_convergence,
+            layers_idxs=self.args.ad_layers,
+        )
+        padim.to(self.args.device)
+        trainer = PadimTrainer(
+            model=padim,
+            device=self.args.device,
+            save_path=self.args.model_checkpoint_save_path,
+            data_path=None,
+            class_name=self.args.category,
+            apply_diagonalization=False
+        )
 
-        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                      REAL_IAD_DATASET_PATH,
-                                      AUDIO_JACK_DATASET_JSON,
-                                      task=TaskType.SEGMENTATION,
-                                      split=Split.TEST,
-                                      image_size=IMAGE_SIZE,
-                                      gt_mask_size=IMAGE_SIZE,
-                                      transform=transform)
+        train_dataloader = DataLoader(
+            train_dataset, batch_size=self.args.batch_size, pin_memory=True, drop_last=True
+        )
 
-        test_padim(test_dataset, 'audiojack', self.args.backbone,
-                    self.args.ad_layers,
-                    self.args.device, self.args.model_checkpoint_path)
+        trainer.train(train_dataloader, None)
 
-    def test_padim_inference_with_visa_dataset(self):
-        self.args.dataset_path = VISA_DATASET_PATH
+        # evaluate the model
+        test_dataloader = DataLoader(
+            test_dataset, batch_size=self.args.batch_size, shuffle=True, drop_last=True
+        )
+
+        evaluator = Evaluator(test_dataloader=test_dataloader, device=self.args.device)
+
+        img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
 
 
-        test_dataset = VisaDataset(VISA_DATASET_PATH,
-                                   VISA_DATASET_CSV_PATH,
-                                   Split.TEST, VisaDatasetCategory.candle,
-                                   gt_mask_size=IMAGE_SIZE,
-                                   transform=self.transform)
+        print("Evaluation performances:")
+        print(f"""
+                img_roc: {img_roc}
+                pxl_roc: {pxl_roc}
+                f1_img: {f1_img}
+                f1_pxl: {f1_pxl}
+                img_pr: {img_pr}
+                pxl_pr: {pxl_pr}
+                pxl_pro: {pxl_pro}
+                """)
 
-        test_padim(test_dataset, 'candle', self.args.backbone,
-                    self.args.ad_layers,
-                    self.args.device,  self.args.model_checkpoint_path)
+
 
 
 if __name__ == '__main__':
