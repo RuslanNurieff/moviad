@@ -1,7 +1,17 @@
+import numpy as np
 import torch
 from typing import Dict
 import torch.nn as nn
+from PIL.Image import Image
+
+
 #from icecream import ic
+
+def compute_mask_contamination(mask: torch.Tensor | Image) -> float:
+    if isinstance(mask, Image):
+        mask = torch.tensor(np.array(mask))
+    contaminated_pixels = torch.nonzero(mask).shape[0]
+    return contaminated_pixels / torch.flatten(mask).shape[0]
 
 def prepare_dictionary(filename:str, hparams):
     if hparams.ckpt_pretrained != "":

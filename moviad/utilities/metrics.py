@@ -1,8 +1,38 @@
 from __future__ import annotations
+
+import faiss
+import torch
+from sympy.codegen.cnodes import sizeof
 from torch.nn import functional as F
 from sklearn.metrics import *
 import numpy as np
 from skimage.measure import label, regionprops
+
+from moviad.models.patchcore.product_quantizer import ProductQuantizer
+
+
+def compute_quantizer_config_size(quantizer: faiss.IndexPQ) -> int:
+    centroids_size = quantizer.pq.centroids.size() * np.dtype(np.float32).itemsize
+    m_size = np.dtype(np.int32).itemsize
+    k_size = np.dtype(np.int32).itemsize
+    total_size = centroids_size + m_size + k_size
+    return total_size
+
+
+def compute_product_quantization_efficiency(coreset: np.ndarray, compressed_coreset: np.ndarray,
+                                            quantizer: ProductQuantizer) -> (float, float):
+    np_array_type = coreset.dtype
+    compressed_np_array_type = compressed_coreset.dtype
+    original_shape = coreset.shape
+    compressed_shape = compressed_coreset.shape
+    product_quantized_config_size = compute_quantizer_config_size(quantizer.quantizer)
+    original_bitrate = np_array_type.itemsize * np.prod(original_shape) * 8
+    compressed_bitrate = (compressed_np_array_type.itemsize * np.prod(compressed_shape) + product_quantized_config_size) * 8
+    compression_efficiency = 1 - compressed_bitrate / original_bitrate
+    dequantized_coreset = quantizer.decode(compressed_coreset).cpu().numpy()
+    distortion = np.mean((coreset - dequantized_coreset) ** 2)
+
+    return compression_efficiency, distortion
 
 
 def cal_img_roc(img_scores: np.ndarray, gt_list: list) -> tuple[float, float, float]:
@@ -20,7 +50,7 @@ def cal_img_roc(img_scores: np.ndarray, gt_list: list) -> tuple[float, float, fl
     """
 
     # for every image in the batch take the max pixel anomaly score
-    
+
     gt_list = np.asarray(gt_list)
     fpr, tpr, _ = roc_curve(gt_list, img_scores)
     img_roc_auc = roc_auc_score(gt_list, img_scores)
@@ -130,7 +160,6 @@ def cal_pr_auc_pxl(scores: np.ndarray, gt_masks: np.ndarray) -> float:
 
 
 def cal_pro_auc_pxl(scores: np.ndarray, gt_masks: np.ndarray) -> float:
-
     def rescale(x):
         return (x - x.min()) / (x.max() - x.min())
 

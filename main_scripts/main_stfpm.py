@@ -1,4 +1,4 @@
-import os, sys, json, logging
+import os, sys
 from datetime import datetime
 import argparse
 from glob import glob
@@ -10,7 +10,7 @@ sys.path.append(os.path.join(script_path, "..", ".."))
 
 from moviad.models import Stfpm
 from moviad.trainers.trainer_stfpm import train_param_grid_search
-from moviad.datasets.mvtec_dataset import MVTecDataset, CATEGORIES
+from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset, CATEGORIES
 from moviad.utilities.evaluator import Evaluator, append_results
 from moviad.utilities.configurations import TaskType, Split
 
@@ -50,7 +50,7 @@ def main(args):
         input_sizes[model_name] = args.input_size
 
     # TRAIN AND SAVE BEST ###############################################
-    if args.train:
+    if args.data:
         ad_model = "stfpm"
 
         ad_layers = [ad_layers]

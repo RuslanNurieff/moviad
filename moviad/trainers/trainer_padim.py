@@ -7,11 +7,12 @@ from moviad.models.padim.padim import Padim
 
 class PadimTrainer:
 
-    def __init__(self, model: Padim, device, save_path, data_path, class_name):
+    def __init__(self, model: Padim, device, save_path, data_path, class_name, apply_diagonalization=False):
         """
         Args:
             device: one of the following strings: 'cpu', 'cuda', 'cuda:0', ...
         """
+        self.apply_diagonalization = apply_diagonalization
         self.model = model
         self.save_path = save_path
         self.class_name = class_name
@@ -20,11 +21,13 @@ class PadimTrainer:
 
         model.to(device)
 
-    def train(self, train_dataloader):
+    def train(self, train_dataloader, logger=None):
         print(f"Train Padim. Backbone: {self.model.backbone_model_name}")
 
-
         self.model.train()
+
+        if logger is not None:
+            logger.watch(self.model)
 
         # 1. get the feature maps from the backbone
         layer_outputs: dict[str, list[torch.Tensor]] = {
@@ -41,9 +44,12 @@ class PadimTrainer:
         # 2. use the feature maps to get the embeddings
         embedding_vectors = self.model.raw_feature_maps_to_embeddings(layer_outputs)
         # 3. fit the multivariate Gaussian distribution
-        self.model.fit_multivariate_gaussian(embedding_vectors, update_params=True)
+        if self.apply_diagonalization:
+            self.model.fit_multivariate_diagonal_gaussian(embedding_vectors, update_params=True, logger=logger)
+        else:
+            self.model.fit_multivariate_gaussian(embedding_vectors, update_params=True, logger=logger)
         # 4. save the model
         if self.save_path is not None:
             model_savepath = self.model.get_model_savepath(self.save_path)
             os.makedirs(os.path.dirname(model_savepath), exist_ok=True)
-            torch.save(self.model.state_dict(), model_savepath)
+            torch.save(self.model.state_dict(), model_savepath, pickle_protocol=4)
