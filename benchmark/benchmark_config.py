@@ -30,6 +30,7 @@ class DatasetConfig:
         self.mvtec_root_path = self.convert_path(self.config['datasets']['mvtec']['root_path'])
 
     def load_config(self, config_file):
+        assert os.path.exists(config_file), f"Config file {config_file} does not exist"
         with open(config_file, 'r') as file:
             return yaml.safe_load(file)
 

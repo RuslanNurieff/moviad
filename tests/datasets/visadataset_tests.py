@@ -6,6 +6,8 @@ import torch
 from PIL import ImageEnhance
 from torch.onnx.symbolic_opset9 import tensor
 from torchvision.transforms import transforms
+
+from benchmark_config import DatasetConfig
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClassEnum
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadAnomalyClass
 from moviad.datasets.visa.visa_data import VisaAnomalyClass
@@ -14,22 +16,20 @@ from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.pil_image_utils import IncreaseContrast
 from tests.main.patchcore_tests import transform
-
-VISA_DATASET_PATH = 'E:/VisualAnomalyDetection/datasets/visa'
-VISA_DATASET_CSV_PATH = 'E:/VisualAnomalyDetection/datasets/visa/split_csv/1cls.csv'
 IMAGE_SIZE = (224, 224)
 
 
 class VisaTrainDatasetTests(unittest.TestCase):
     def setUp(self):
+        self.config = DatasetConfig("./config.yaml")
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor(),
             transforms.ConvertImageDtype(torch.float32),
         ])
 
-        self.dataset = VisaDataset(VISA_DATASET_PATH,
-                                   VISA_DATASET_CSV_PATH,
+        self.dataset = VisaDataset(self.config.visa_root_path,
+                                   self.config.visa_csv_path,
                                    Split.TRAIN,
                                    VisaDatasetCategory.candle.value,
                                    transform=self.transform)
@@ -66,6 +66,7 @@ class VisaTrainDatasetTests(unittest.TestCase):
 
 class VisaDatasetTests(unittest.TestCase):
     def setUp(self):
+        self.config = DatasetConfig("./config.yaml")
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             IncreaseContrast(1.5),
@@ -73,15 +74,15 @@ class VisaDatasetTests(unittest.TestCase):
             transforms.ConvertImageDtype(torch.float32),
         ])
 
-        self.train_dataset = VisaDataset(VISA_DATASET_PATH,
-                                         VISA_DATASET_CSV_PATH,
+        self.train_dataset = VisaDataset(self.config.visa_root_path,
+                                         self.config.visa_csv_path,
                                          Split.TRAIN, VisaDatasetCategory.pipe_fryum.value,
                                          gt_mask_size=IMAGE_SIZE,
                                          transform=self.transform)
 
         self.train_dataset.load_dataset()
-        self.test_dataset = VisaDataset(VISA_DATASET_PATH,
-                                        VISA_DATASET_CSV_PATH,
+        self.test_dataset = VisaDataset(self.config.visa_root_path,
+                                        self.config.visa_csv_path,
                                         Split.TEST, VisaDatasetCategory.pipe_fryum.value,
                                         gt_mask_size=IMAGE_SIZE,
                                         transform=self.transform)

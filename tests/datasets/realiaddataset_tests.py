@@ -6,18 +6,18 @@ import torch
 from sympy import false
 from torchvision.transforms import transforms
 
+from benchmark_config import DatasetConfig
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClassEnum
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadAnomalyClass
 from moviad.utilities.configurations import TaskType, Split
 
-REAL_IAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'
-AUDIO_JACK_DATASET_JSON = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/audiojack.json'
-PILL_DATASET_JSON = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/vcpill.json'
+
 IMAGE_SIZE = (224, 224)
 
 
 class RealIadTrainDatasetTests(unittest.TestCase):
     def setUp(self):
+        self.config = DatasetConfig("./config.yaml")
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor(),
@@ -25,8 +25,8 @@ class RealIadTrainDatasetTests(unittest.TestCase):
         ])
 
         self.dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
-                                      REAL_IAD_DATASET_PATH,
-                                      'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/',
+                                      self.config.realiad_root_path,
+                                      self.config.realiad_json_root_path,
                                       task=TaskType.SEGMENTATION,
                                       split=Split.TRAIN,
                                       image_size=IMAGE_SIZE,
@@ -77,6 +77,7 @@ class RealIadTrainDatasetTests(unittest.TestCase):
 
 class RealIadTestDatasetTests(unittest.TestCase):
     def setUp(self):
+        self.config = DatasetConfig("./config.yaml")
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor(),
@@ -84,8 +85,8 @@ class RealIadTestDatasetTests(unittest.TestCase):
         ])
 
         self.train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
-                                            REAL_IAD_DATASET_PATH,
-                                            'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/',
+                                            self.config.realiad_root_path,
+                                            self.config.realiad_json_root_path,
                                             task=TaskType.SEGMENTATION,
                                             split=Split.TRAIN,
                                             image_size=IMAGE_SIZE,
@@ -94,8 +95,8 @@ class RealIadTestDatasetTests(unittest.TestCase):
         self.train_dataset.load_dataset()
 
         self.test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
-                                           REAL_IAD_DATASET_PATH,
-                                           'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/',
+                                           self.config.realiad_root_path,
+                                           self.config.realiad_json_root_path,
                                            task=TaskType.SEGMENTATION,
                                            split=Split.TEST,
                                            image_size=IMAGE_SIZE,

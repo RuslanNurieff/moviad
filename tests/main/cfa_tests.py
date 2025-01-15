@@ -4,20 +4,22 @@ import torch
 from torchvision.models import MobileNet_V2_Weights
 from torchvision.transforms import transforms, InterpolationMode
 
+from benchmark_config import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
+from moviad.entrypoints.cfa import CFAArguments, train_cfa
 from moviad.utilities.configurations import TaskType, Split
-from tests.datasets.realiaddataset_tests import IMAGE_SIZE, REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON
+from tests.datasets.realiaddataset_tests import IMAGE_SIZE
 from tests.datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
-from tests.main.common import get_training_args, MVTECH_DATASET_PATH, REALIAD_DATASET_PATH
 
 
 class CfaTrainTests(unittest.TestCase):
     def setUp(self):
-        self.args = get_training_args()
+        self.args = CFAArguments()
+        self.config = DatasetConfig("./config.yaml")
         self.transform = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.PILToTensor(),
@@ -30,11 +32,10 @@ class CfaTrainTests(unittest.TestCase):
         ])
 
     def test_cfa_train_with_mvtec_dataset(self):
-        self.args.dataset_path = MVTECH_DATASET_PATH
         self.args.category = 'pill'
         train_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
-            self.args.dataset_path,
+            self.config.mvtec_root_path,
             self.args.category,
             Split.TRAIN,
             img_size=(256, 256),
@@ -42,7 +43,7 @@ class CfaTrainTests(unittest.TestCase):
 
         test_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
-            self.args.dataset_path,
+            self.config.mvtec_root_path,
             self.args.category,
             Split.TEST,
             img_size=(256, 256),
@@ -51,98 +52,47 @@ class CfaTrainTests(unittest.TestCase):
         train_dataset.load_dataset()
         test_dataset.load_dataset()
 
-        main_train_cfa(train_dataset, test_dataset, self.args.category, self.args.backbone,
-                       self.args.ad_layers,
-                       self.args.epochs,
-                       self.args.save_path, self.args.device)
+        train_cfa(self.args)
 
     def test_cfa_train_with_realiad_dataset(self):
-        self.args.dataset_path = REALIAD_DATASET_PATH
-
         # define training and test datasets
-        train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                       REAL_IAD_DATASET_PATH,
-                                       AUDIO_JACK_DATASET_JSON,
+        train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
+                                       self.config.realiad_root_path,
+                                       self.config.realiad_json_root_path,
                                        task=TaskType.SEGMENTATION,
                                        split=Split.TRAIN,
                                        image_size=IMAGE_SIZE,
                                        transform=self.transform)
 
-        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                      REAL_IAD_DATASET_PATH,
-                                      AUDIO_JACK_DATASET_JSON,
+        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
+                                      self.config.realiad_root_path,
+                                      self.config.realiad_json_root_path,
                                       task=TaskType.SEGMENTATION,
                                       split=Split.TEST,
                                       image_size=IMAGE_SIZE,
                                       gt_mask_size=IMAGE_SIZE,
                                       transform=self.transform)
 
-        train_cfa_v2(train_dataset, test_dataset, 'audiojack', self.args.backbone,
-                     self.args.ad_layers,
-                     self.args.epochs,
-                     self.args.save_path, self.args.device)
+        train_cfa(self.args)
 
     def test_cfa_train_with_visa_dataset(self):
         self.args.dataset_path = VISA_DATASET_PATH
 
 
         # define training and test datasets
-        train_dataset = VisaDataset(VISA_DATASET_PATH,
-                                   VISA_DATASET_CSV_PATH,
+        train_dataset = VisaDataset(self.config.visa_root_path,
+                                    self.config.visa_csv_path,
                                    Split.TRAIN,
-                                    VisaDatasetCategory.candle,
+                                    VisaDatasetCategory.candle.value,
                                    transform=self.transform)
 
-        test_dataset = VisaDataset(VISA_DATASET_PATH,
-                                   VISA_DATASET_CSV_PATH,
-                                   Split.TEST, VisaDatasetCategory.candle,
+        test_dataset = VisaDataset(self.config.visa_root_path,
+                                   self.config.visa_csv_path,
+                                   Split.TEST, VisaDatasetCategory.candle.value,
                                    gt_mask_size=IMAGE_SIZE,
                                    transform=self.transform)
 
-        train_cfa_v2(train_dataset, test_dataset, 'candle', self.args.backbone,
-                     self.args.ad_layers,
-                     self.args.epochs,
-                     self.args.save_path, self.args.device)
-
-
-class CfaInferenceTests(unittest.TestCase):
-    def setUp(self):
-        self.args = get_training_args()
-
-    def test_cfa_inference_with_mvtec_dataset(self):
-        self.args.dataset_path = MVTECH_DATASET_PATH
-        test_dataset = MVTecDataset(
-            TaskType.SEGMENTATION,
-            self.args.dataset_path,
-            self.args.class_name,
-            Split.TEST,
-            img_size=(256, 256),
-        )
-
-        test_cfa_v2(test_dataset, self.args.class_name, self.args.backbone,
-                    self.args.ad_layers,
-                    self.args.model_checkpoint_path,
-                    self.args.device)
-
-    def test_cfa_inference_with_realiad_dataset(self):
-        transform = transforms.Compose([
-            transforms.Resize(IMAGE_SIZE),
-            transforms.PILToTensor(),
-            transforms.ConvertImageDtype(torch.float32),
-        ])
-
-        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                      REAL_IAD_DATASET_PATH,
-                                      AUDIO_JACK_DATASET_JSON,
-                                      task=TaskType.SEGMENTATION,
-                                      split=Split.TEST,
-                                      image_size=IMAGE_SIZE,
-                                      gt_mask_size=IMAGE_SIZE,
-                                      transform=transform)
-
-        test_cfa_v2(test_dataset, 'audiojack', self.args.backbone,
-                    self.args.ad_layers,
-                    self.args.model_checkpoint_path, self.args.device)
+        train_cfa(self.args)
 
 
 if __name__ == '__main__':
