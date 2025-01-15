@@ -8,6 +8,7 @@ from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.patchcore.kcenter_greedy import KCenterGreedy
 from moviad.utilities.evaluator import Evaluator
 
+
 class TrainerPatchCore():
 
     """
@@ -57,6 +58,7 @@ class TrainerPatchCore():
 
                 #print(f"Embedding Shape: {embedding.shape}")
 
+
                 embeddings.append(embedding)
 
             embeddings = torch.cat(embeddings, dim = 0)
@@ -70,6 +72,14 @@ class TrainerPatchCore():
             sampler = KCenterGreedy(embeddings, self.patchore_model.feature_extractor.quantized, self.device)
             sampled_idxs = sampler.get_coreset_idx_randomp(embeddings.cpu())
             coreset = embeddings[sampled_idxs]
+
+            if self.patchore_model.apply_quantization:
+                assert self.patchore_model.product_quantizer is not None, "Product Quantizer not initialized"
+
+                self.patchore_model.product_quantizer.fit(coreset)
+                coreset = self.patchore_model.product_quantizer.encode(coreset)
+                coreset = torch.tensor(coreset).to(self.device)
+
 
             self.patchore_model.memory_bank = coreset
 

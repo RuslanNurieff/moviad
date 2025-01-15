@@ -54,11 +54,6 @@ class Evaluator:
             # get anomaly map and score
             with torch.no_grad():
                 anomaly_maps, anomaly_scores = model(images.to(self.device))
-                # print(f"mask path: {path}")
-                # plt.figure()
-                # plt.imshow(anomaly_maps[0].squeeze().cpu().numpy())
-                # # plt.savefig("../output/evaluator/anomaly_map.png")
-                # import pdb; pdb.set_trace()
 
             if anomaly_maps.shape[2:] != masks.shape[2:]:
                 raise Exception(

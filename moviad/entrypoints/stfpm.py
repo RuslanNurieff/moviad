@@ -10,7 +10,8 @@ from moviad.datasets.common import IadDataset
 from moviad.models.stfpm.stfpm import Stfpm
 from moviad.trainers.trainer_stfpm import train_param_grid_search
 from moviad.utilities.evaluator import Evaluator, append_results
-from tests.main.common import StfpmTrainingParams, StfpmTestParams
+from tests.main.common import StfpmTrainingParams, StfpmTestParams, INPUT_SIZES
+
 
 @dataclass
 class STFPMArgs:
@@ -34,6 +35,10 @@ class STFPMArgs:
     normalize_dataset: bool = True
     student_bootstrap_layer = [0]
     seeds = [3]
+    results_dirpath: str = './results'
+    input_sizes: dict = None
+    ad_model: str = None
+    trained_models_filepaths: Optional[List[str]] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -58,6 +63,10 @@ class STFPMArgs:
             "normalize_dataset": self.normalize_dataset,
             "student_bootstrap_layer": self.student_bootstrap_layer,
             "seeds": self.seeds,
+            "results_dirpath": self.results_dirpath,
+            "input_sizes": self.input_sizes,
+            "trained_models_filepaths": self.trained_models_filepaths,
+            "ad_model": self.ad_model
         }
     
 
@@ -71,7 +80,7 @@ def train_stfpm(params: STFPMArgs, logger = None) -> None:
     m = "\n".join(trained_models_filepaths)
     print(f"Trained models:{m}")
 
-def test_stfpm(params: StfpmTrainingParams, logger = None) -> None:
+def test_stfpm(params: STFPMArgs, logger = None) -> None:
     if params.trained_models_filepaths is None:
         params.trained_models_filepaths = glob(
             os.path.join(params.checkpoint_dir, "**/*.pth.tar"), recursive=True

@@ -23,8 +23,8 @@ from tests.main.common import TrainingArguments, get_training_args, MVTECH_DATAS
 
 backbones = {
     "mobilenet_v2": ["features.4", "features.7", "features.10"],
-    "wide_resnet50_2": ["layer1", "layer2", "layer3"],
-    # "phinet_1.2_0.5_6_downsampling": [2, 6, 7],
+    # "wide_resnet50_2": ["layer1", "layer2", "layer3"],
+    "phinet_1.2_0.5_6_downsampling": [2, 6, 7],
     "micronet-m1": [2, 4, 5],
     "mcunet-in3": [3, 6, 9],
 }
@@ -35,7 +35,7 @@ class PadimBenchmark(unittest.TestCase):
         self.epoch = 10
         torch.manual_seed(self.seed)
         self.args = PadimArgs()
-        self.args.contamination_ratio = 0.1
+        self.args.contamination_ratio = 0.2
         self.args.batch_size = 2
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -86,6 +86,8 @@ class PadimBenchmark(unittest.TestCase):
     def test_padim_realiad(self):
         self.args.train_dataset = real_iad_train_dataset
         self.args.test_dataset = real_iad_test_dataset
+        self.args.train_dataset.class_name = RealIadClassEnum.PCB.value
+        self.args.test_dataset.class_name = RealIadClassEnum.PCB.value
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.class_name

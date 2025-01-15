@@ -4,15 +4,21 @@ from tkinter import Image
 from tkinter.tix import IMAGE
 from typing import List
 
+import faiss
 import torch
+from torch.nn.init import normal_
+from torch.onnx.symbolic_opset13 import quantized_linear
 from torchvision.transforms import transforms
-
-from main_scripts.main_patchcore import train_patchcore, test_patchcore, train_patchcore, test_patchcore, \
-    train_patchcore, IMAGE_SIZE, REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON, test_patchcore
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
+from moviad.entrypoints.patchcore import PatchCoreArgs, train_patchcore
+from moviad.models.patchcore.patchcore import PatchCore
+from moviad.models.patchcore.product_quantizer import ProductQuantizer
+from moviad.trainers.trainer_patchcore import TrainerPatchCore
 from moviad.utilities.configurations import TaskType, Split
+from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
+from moviad.utilities.metrics import compute_product_quantization_efficiency
 from tests.main.common import TrainingArguments
 
 MVTECH_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\mvtec'
@@ -39,85 +45,82 @@ transform = transforms.Compose([
 class PatchCoreTrainTests(unittest.TestCase):
 
     def setUp(self):
-        self.args = TrainingArguments(
-            mode=MODE,
-            dataset_path='',
-            category=CATEGORY,
-            backbone=BACKBONE,
-            epochs=100,
-            ad_layers=AD_LAYERS,
-            save_path=SAVE_PATH,
-            visual_test_path=VISUAL_TEST_PATH,
-            device=DEVICE,
-            seed=SEED
+        self.args = PatchCoreArgs()
+        self.args.contamination_ratio = 0.25
+        self.args.batch_size = 1
+        self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.args.img_input_size = (224, 224)
+        self.args.train_dataset = MVTecDataset(
+            TaskType.SEGMENTATION,
+            MVTECH_DATASET_PATH,
+            'pill',
+            Split.TRAIN,
+            img_size=self.args.img_input_size,
         )
-
-    def test_patchcore_train_with_mvtec_dataset(self):
-        self.args.dataset_path = MVTECH_DATASET_PATH
-        train_dataset = MVTecDataset(TaskType.SEGMENTATION, self.args.dataset_path, self.args.category, "train")
-        test_dataset = MVTecDataset(TaskType.SEGMENTATION, self.args.dataset_path, self.args.category, "test")
-        train_patchcore(train_dataset, test_dataset, self.args.category, self.args.backbone, self.args.ad_layers,
-                        self.args.save_path, self.args.device)
-
-    def test_patchcore_train_with_realiad_dataset(self):
-        self.args.dataset_path = REALIAD_DATASET_PATH
-
-        train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                       self.args.dataset_path,
-                                       AUDIO_JACK_DATASET_JSON,
-                                       task=TaskType.SEGMENTATION,
-                                       split=Split.TRAIN,
-                                       image_size=IMAGE_SIZE,
-                                       transform=transform)
-
-        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                      self.args.dataset_path,
-                                      AUDIO_JACK_DATASET_JSON,
-                                      task=TaskType.SEGMENTATION,
-                                      split=Split.TEST,
-                                      image_size=IMAGE_SIZE,
-                                      gt_mask_size=IMAGE_SIZE,
-                                      transform=transform)
-
-        train_patchcore(train_dataset, test_dataset, 'audiojack', self.args.backbone, self.args.ad_layers,
-                        self.args.save_path, self.args.device)
-
-
-
-class PatchCoreInferenceTests(unittest.TestCase):
-    def setUp(self):
-        self.args = TrainingArguments(
-            mode=MODE,
-            dataset_path='',
-            category=CATEGORY,
-            backbone=BACKBONE,
-            ad_layers=AD_LAYERS,
-            epochs=100,
-            save_path=SAVE_PATH,
-            visual_test_path=VISUAL_TEST_PATH,
-            device=DEVICE,
-            seed=SEED,
-            model_checkpoint_path=MODEL_CHECKPOINT_PATH
+        self.args.test_dataset = MVTecDataset(
+            TaskType.SEGMENTATION,
+            MVTECH_DATASET_PATH,
+            'pill',
+            Split.TEST,
+            img_size=self.args.img_input_size,
         )
+        self.args.train_dataset.load_dataset()
+        self.args.test_dataset.load_dataset()
+        self.args.category = self.args.train_dataset.category
+        self.contamination = 0
+        self.args.backbone = BACKBONE
+        self.args.ad_layers = AD_LAYERS
 
-    def test_patchcore_inference_with_mvtec_dataset(self):
-        self.args.dataset_path = MVTECH_DATASET_PATH
-        test_dataset = MVTecDataset(TaskType.SEGMENTATION, self.args.dataset_path, self.args.category, "test")
-        test_patchcore(test_dataset, self.args.category, self.args.backbone, self.args.ad_layers,
-                       self.args.model_checkpoint_path, self.args.device)
+    def test_patchcore_quantization_efficiency(self):
+        unquantized_memory_bank = torch.rand([30000, 160], dtype=torch.float32)
 
-    def test_patchcore_inference_with_realiad_dataset(self):
-        self.args.dataset_path = REALIAD_DATASET_PATH
-        test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK,
-                                      self.args.dataset_path,
-                                      AUDIO_JACK_DATASET_JSON,
-                                      task=TaskType.SEGMENTATION,
-                                      split=Split.TEST,
-                                      image_size=IMAGE_SIZE,
-                                      gt_mask_size=IMAGE_SIZE,
-                                      transform=transform)
-        test_patchcore(test_dataset, 'audiojack', self.args.backbone, self.args.ad_layers,
-                       self.args.model_checkpoint_path, self.args.device)
+        pq = ProductQuantizer()
+        pq.fit(unquantized_memory_bank)
+
+        quantized_memory_bank = pq.encode(unquantized_memory_bank)
+
+        quantization_efficiency, distortion = compute_product_quantization_efficiency(unquantized_memory_bank.cpu().numpy(),
+                                                                          quantized_memory_bank.cpu().numpy(),
+                                                                          pq)
+
+        self.assertGreater(quantization_efficiency, 0)
+        self.assertGreater(distortion, 0)
+
+    def test_patchcore_with_quantization(self):
+        feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
+                                                   False, None)
+        train_dataloader = torch.utils.data.DataLoader(self.args.train_dataset, batch_size=self.args.batch_size,
+                                                       shuffle=True,
+                                                       drop_last=True)
+        test_dataloader = torch.utils.data.DataLoader(self.args.test_dataset, batch_size=self.args.batch_size,
+                                                      shuffle=True,
+                                                      drop_last=True)
+
+        patchcore_model = PatchCore(self.args.device, input_size=self.args.img_input_size,
+                                    feature_extractor=feature_extractor, apply_quantization=True)
+
+        trainer = TrainerPatchCore(patchcore_model, train_dataloader, test_dataloader, self.args.device)
+        trainer.train()
+
+        quantized_memory_bank = patchcore_model.memory_bank
+        patchcore_model.product_quantizer.save("product_quantizer.bin")
+
+    def test_patchcore_without_quantization(self):
+        feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
+                                                   False, None)
+        train_dataloader = torch.utils.data.DataLoader(self.args.train_dataset, batch_size=self.args.batch_size,
+                                                       shuffle=True,
+                                                       drop_last=True)
+        test_dataloader = torch.utils.data.DataLoader(self.args.test_dataset, batch_size=self.args.batch_size,
+                                                      shuffle=True,
+                                                      drop_last=True)
+
+        patchcore_model = PatchCore(self.args.device, input_size=self.args.img_input_size,
+                                    feature_extractor=feature_extractor, apply_quantization=False)
+        trainer = TrainerPatchCore(patchcore_model, train_dataloader, test_dataloader, self.args.device)
+        trainer.train()
+
+        quantized_memory_bank = patchcore_model.memory_bank
 
 
 if __name__ == '__main__':

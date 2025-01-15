@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import pathlib
 
+import faiss
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -15,9 +16,11 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 
+from .product_quantizer import ProductQuantizer
 from ...utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from ...models.patchcore.anomaly_map import AnomalyMapGenerator
 from ...utilities.get_sizes import *
+
 
 class PatchCore(nn.Module):
     """Patchcore Module."""
@@ -27,7 +30,8 @@ class PatchCore(nn.Module):
         device:torch.device,
         input_size: tuple[int],
         feature_extractor: CustomFeatureExtractor,
-        num_neighbors: int = 9
+        num_neighbors: int = 9,
+        apply_quantization: bool = False,
     ) -> None: 
         
         """
@@ -52,6 +56,9 @@ class PatchCore(nn.Module):
 
         self.register_buffer("memory_bank", Tensor())
         self.memory_bank: Tensor
+        self.apply_quantization = apply_quantization
+        if apply_quantization:
+            self.product_quantizer = ProductQuantizer()
 
     def forward(self, input_tensor: Tensor) -> Tensor | dict[str, Tensor]:
         """Return Embedding during training, or a tuple of anomaly map and anomaly score during testing.
@@ -70,6 +77,7 @@ class PatchCore(nn.Module):
         """
 
         #extract the features for the input tensor
+        self.memory_bank.to(self.device)
         with torch.no_grad():
             features = self.feature_extractor(input_tensor.to(self.device))
 
@@ -144,6 +152,8 @@ class PatchCore(nn.Module):
         for layer in self.layers[1:]:
             layer_embedding = features[layer]
             layer_embedding = F.interpolate(layer_embedding, size = embeddings[0].shape[-2], mode = "bilinear")
+            if self.quantize:
+                layer_embedding = layer_embedding.quantize()
             embeddings.append(layer_embedding)
 
         embeddings = torch.cat(embeddings, 1)
@@ -199,7 +209,13 @@ class PatchCore(nn.Module):
             Tensor: Patch scores.
             Tensor: Locations of the nearest neighbor(s).
         """
-        distances = PatchCore.euclidean_distance(embedding, self.memory_bank, quantized=self.feature_extractor.quantized)
+        memory_bank = self.memory_bank
+        if self.apply_quantization:
+            assert self.product_quantizer is not None
+            memory_bank = self.product_quantizer.decode(memory_bank)
+            memory_bank = memory_bank.to(self.device)
+
+        distances = PatchCore.euclidean_distance(embedding, memory_bank, quantized=self.feature_extractor.quantized)
 
         if n_neighbors == 1:
             patch_scores, locations = distances.min(1)
@@ -220,6 +236,11 @@ class PatchCore(nn.Module):
         Returns:
             Tensor: Image-level anomaly scores
         """
+        memory_bank = self.memory_bank
+        if self.apply_quantization:
+            assert self.product_quantizer is not None
+            memory_bank = self.product_quantizer.decode(memory_bank)
+            memory_bank = memory_bank.to(self.device)
 
         # Don't need to compute weights if num_neighbors is 1
         if self.num_neighbors == 1:
@@ -236,17 +257,17 @@ class PatchCore(nn.Module):
         nn_index = locations[torch.arange(batch_size), max_patches]  # indices of m^* in the paper
         
         # 3. Find the support samples of the nearest neighbor in the membank
-        nn_sample = self.memory_bank[nn_index, :]  # m^* in the paper
+        nn_sample = memory_bank[nn_index, :]  # m^* in the paper
         
         # indices of N_b(m^*) in the paper
-        memory_bank_effective_size = self.memory_bank.shape[0]  # edge case when memory bank is too small
+        memory_bank_effective_size = memory_bank.shape[0]  # edge case when memory bank is too small
         _, support_samples = self.nearest_neighbors(
             nn_sample,
             n_neighbors=min(self.num_neighbors, memory_bank_effective_size),
         )
         
         # 4. Find the distance of the patch features to each of the support samples
-        distances = PatchCore.euclidean_distance(max_patches_features.unsqueeze(1), self.memory_bank[support_samples], self.feature_extractor.quantized)
+        distances = PatchCore.euclidean_distance(max_patches_features.unsqueeze(1), memory_bank[support_samples], self.feature_extractor.quantized)
         
         # 5. Apply softmax to find the weights
         weights = (1 - F.softmax(distances.squeeze(1), 1))[..., 0]
@@ -342,6 +363,8 @@ class PatchCore(nn.Module):
         """
 
         state_dict = torch.load(path)
+
+        ## TODO: MemoryBank quantization
 
         if "memory_bank" not in state_dict.keys():
             raise RuntimeError("Memory Bank tensor not in model checkpoint")

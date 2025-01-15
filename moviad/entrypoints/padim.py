@@ -67,6 +67,8 @@ def train_padim(args: PadimArgs, logger=None) -> None:
 
     img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
 
+    torch.cuda.empty_cache()
+
     if logger is not None:
         logger.log({
             "img_roc": img_roc,
