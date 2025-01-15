@@ -4,14 +4,17 @@ from tkinter import Image
 from tkinter.tix import IMAGE
 from typing import List
 
+import faiss
 import torch
 from torch.nn.init import normal_
+from torch.onnx.symbolic_opset13 import quantized_linear
 from torchvision.transforms import transforms
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.entrypoints.patchcore import PatchCoreArgs, train_patchcore
 from moviad.models.patchcore.patchcore import PatchCore
+from moviad.models.patchcore.product_quantizer import ProductQuantizer
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
@@ -67,6 +70,21 @@ class PatchCoreTrainTests(unittest.TestCase):
         self.contamination = 0
         self.args.backbone = BACKBONE
         self.args.ad_layers = AD_LAYERS
+
+    def test_patchcore_quantization_efficiency(self):
+        unquantized_memory_bank = torch.rand([30000, 160], dtype=torch.float32)
+
+        pq = ProductQuantizer()
+        pq.fit(unquantized_memory_bank)
+
+        quantized_memory_bank = pq.encode(unquantized_memory_bank)
+
+        quantization_efficiency, distortion = compute_product_quantization_efficiency(unquantized_memory_bank.cpu().numpy(),
+                                                                          quantized_memory_bank.cpu().numpy(),
+                                                                          pq)
+
+        self.assertGreater(quantization_efficiency, 0)
+        self.assertGreater(distortion, 0)
 
     def test_patchcore_with_quantization(self):
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,

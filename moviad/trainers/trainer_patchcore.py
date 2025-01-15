@@ -7,7 +7,6 @@ import os
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.patchcore.kcenter_greedy import KCenterGreedy
 from moviad.utilities.evaluator import Evaluator
-from moviad.utilities.quantization import product_quantization
 
 
 class TrainerPatchCore():
