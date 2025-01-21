@@ -2,7 +2,7 @@ import os
 
 import yaml
 
-class BenchmarkConfig:
+class YamlConfig:
     def __init__(self, config_file):
         self.config = self.load_config(config_file)
 

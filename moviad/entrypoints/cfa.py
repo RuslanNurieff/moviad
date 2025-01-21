@@ -31,6 +31,7 @@ class CFAArguments:
     visual_test_path: str = None
     device: torch.device = None
     contamination_ratio: float = 0.0
+    seed: int = 4
 
 def train_cfa(args: CFAArguments, logger=None):
     gamma_c = 1
