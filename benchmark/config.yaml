@@ -10,3 +10,8 @@ datasets:
         csv_path: 'E:\VisualAnomalyDetection\datasets\visa\split_csv\1cls.csv'
     mvtec:
         root_path: 'E:\VisualAnomalyDetection\datasets\mvtec'
+
+benchmark:
+  cfa:
+    backbones: ['resnet18', 'mobilenet_v2']
+    datasets: ['realiad', 'visa', 'mvtec']

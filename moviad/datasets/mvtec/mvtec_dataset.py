@@ -16,6 +16,7 @@ from torch.utils.data import Dataset
 
 from moviad.backbones.micronet.utils import compute_mask_contamination
 from moviad.datasets.common import IadDataset
+from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
 from moviad.utilities.configurations import TaskType, Split, LabelName
 
 IMG_EXTENSIONS = (".png", ".PNG")
@@ -229,7 +230,7 @@ class MVTecDataset(IadDataset):
         contamination_set_size = int(math.floor(len(self.samples) * ratio))
         contaminated_entries_indices = source.samples[source.samples["label_index"] == LabelName.ABNORMAL.value].index
         if len(contaminated_entries_indices) < contamination_set_size:
-            raise ValueError(
+            raise DatasetTooSmallToContaminateException(
                 f"Source dataset does not contain enough abnormal entries to contaminate the destination dataset. "
                 f"Source dataset contains {len(contaminated_entries_indices)} abnormal entries, "
                 f"while {contamination_set_size} are required."

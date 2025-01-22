@@ -13,7 +13,11 @@ import os
 from torch.utils.data import Dataset
 from pathlib import Path
 
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode
+
 from moviad.datasets.common import IadDataset
+from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
 from moviad.datasets.realiad.realiad_data import RealIadData
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum, RealIadAnomalyClass
 from moviad.utilities.configurations import TaskType, Split, LabelName
@@ -40,6 +44,18 @@ class RealIadDataset(IadDataset):
         self.split = split
         self.gt_mask_size = gt_mask_size
 
+        if transform is None:
+            self.transform = transforms.Compose([
+            transforms.Resize(image_size),
+            transforms.PILToTensor(),
+            transforms.Resize(
+                image_size,
+                antialias=True,
+                interpolation=InterpolationMode.NEAREST,
+            ),
+            transforms.ConvertImageDtype(torch.float32),
+        ])
+
     def compute_contamination_ratio(self) -> float:
         if self.data is None:
             raise ValueError("Dataset is not loaded")
@@ -61,7 +77,7 @@ class RealIadDataset(IadDataset):
         contaminated_image_entries = [image for image in source.data.images if
                                       image.anomaly_class != RealIadAnomalyClass.OK]
         if len(contaminated_data_entries) < contamination_set_size:
-            raise ValueError(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
+            raise DatasetTooSmallToContaminateException(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
                              f"Found {len(contaminated_data_entries)} entries, but needed {contamination_set_size} entries")
 
         contaminated_data_entries = np.random.choice(contaminated_data_entries, contamination_set_size,

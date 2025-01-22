@@ -7,18 +7,8 @@ from torchvision.transforms import transforms, InterpolationMode
 
 from benchmark_common import mvtec_train_dataset, mvtec_test_dataset, real_iad_train_dataset, real_iad_test_dataset, \
     visa_train_dataset, visa_test_dataset
-from datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
-from main_scripts.main_padim import main_train_padim
-from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
-from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
-from moviad.datasets.visa.visa_dataset import VisaDataset
-from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.entrypoints.padim import train_padim, PadimArgs
-from moviad.entrypoints.patchcore import IMAGE_SIZE
-from moviad.utilities.configurations import TaskType, Split
-from tests.datasets.realiaddataset_tests import REAL_IAD_DATASET_PATH, AUDIO_JACK_DATASET_JSON
-from tests.main.common import TrainingArguments, get_training_args, MVTECH_DATASET_PATH
 
 
 backbones = {

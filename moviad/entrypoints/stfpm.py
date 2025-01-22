@@ -6,23 +6,19 @@ from typing import Optional, List, Any
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+from moviad.common.args import Args
 from moviad.datasets.common import IadDataset
 from moviad.models.stfpm.stfpm import Stfpm
 from moviad.trainers.trainer_stfpm import train_param_grid_search
 from moviad.utilities.evaluator import Evaluator, append_results
-from tests.main.common import StfpmTrainingParams, StfpmTestParams, INPUT_SIZES
-
 
 @dataclass
-class STFPMArgs:
+class STFPMArgs(Args):
     train_dataset: IadDataset = None
     test_dataset: IadDataset  = None
     epochs = [10]
     categories: list[str] = None
     backbone: str = None
-    contamination_ratio: float = 0.0
-    batch_size: int = 4  # Default batch size
-    device: torch.device = None  # Example: torch.device or str
     save_path: str = None  # Default save path (no path by default)
     model_checkpoint_path: str = None  # Path for loading a model checkpoint
     visual_test_path: str = None  # Path for saving visual test outputs
@@ -149,7 +145,7 @@ def test_stfpm(params: STFPMArgs, logger = None) -> None:
 
         torch.cuda.empty_cache()
 
-def visualize_stfpm(params: StfpmTestParams):
+def visualize_stfpm(params: STFPMArgs):
     if params.trained_models_filepaths is None:
         trained_models_filepaths = glob(
             os.path.join(params.checkpoint_dir, "**/*.pth.tar"), recursive=True

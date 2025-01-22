@@ -17,10 +17,6 @@ from moviad.trainers.trainer_patchcore import TrainerPatchCore
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.evaluator import Evaluator
 
-REAL_IAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'
-AUDIO_JACK_DATASET_JSON = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/audiojack.json'
-IMAGE_SIZE = (224, 224)
-
 
 def train_patchcore(dataset_path: str, category: str, backbone: str, ad_layers: list, save_path: str,
                     device: torch.device, max_dataset_size: int = None):

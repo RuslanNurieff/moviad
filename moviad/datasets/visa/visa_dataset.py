@@ -3,7 +3,11 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import torch
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode
+
 from moviad.datasets.common import IadDataset
+from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
 from moviad.datasets.visa.visa_data import VisaData, VisaAnomalyClass
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import Split, LabelName
@@ -15,10 +19,9 @@ class VisaDataset(IadDataset):
     split: Split
     class_name: str
     data: VisaData
-    transform: None
 
     def __init__(self, root_path: str, csv_path: str, split: Split, class_name: str,
-                 gt_mask_size: Optional[tuple] = None, transform=None):
+                 gt_mask_size: Optional[tuple] = None, image_size=(224,224), transform=None):
         self.root_path = root_path
         self.csv_path = csv_path
         self.split = split
@@ -29,6 +32,18 @@ class VisaDataset(IadDataset):
         self.dataframe = self.dataframe[self.dataframe["split"] == split.value]
         self.dataframe = self.dataframe[self.dataframe["object"] == class_name]
         self.category = class_name
+
+        if transform is None:
+            self.transform = transforms.Compose([
+                transforms.Resize(image_size),
+                transforms.PILToTensor(),
+                transforms.Resize(
+                    image_size,
+                    antialias=True,
+                    interpolation=InterpolationMode.NEAREST,
+                ),
+                transforms.ConvertImageDtype(torch.float32),
+            ])
 
     def set_category(self, category: str):
         self.category = category
@@ -53,7 +68,7 @@ class VisaDataset(IadDataset):
         contamination_set_size = int(len(self.data) * ratio)
         contaminated_entries = [entry for entry in source.data.images if entry.label == VisaAnomalyClass.ANOMALY]
         if len(contaminated_entries) < contamination_set_size:
-            raise ValueError(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
+            raise DatasetTooSmallToContaminateException(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
                              f"Found {len(contaminated_entries)} entries, but needed {contamination_set_size} entries")
         contaminated_entries = np.random.choice(contaminated_entries, contamination_set_size, replace=False).tolist()
         self.data.images.extend(contaminated_entries)

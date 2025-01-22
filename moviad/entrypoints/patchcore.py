@@ -9,22 +9,21 @@ from dataclasses import dataclass
 from torchvision.transforms import transforms
 from tqdm import tqdm
 
+from moviad.common.args import Args
 from moviad.common.common_utils import obsolete
+from moviad.datasets.builder import DatasetFactory
 from moviad.datasets.common import IadDataset
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClassEnum
+from moviad.entrypoints.common import load_datasets
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.evaluator import Evaluator
 
-REAL_IAD_DATASET_PATH = 'E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256'
-AUDIO_JACK_DATASET_JSON = 'E:/VisualAnomalyDetection/datasets/Real-IAD/realiad_jsons/audiojack.json'
-IMAGE_SIZE = (224, 224)
-
 @dataclass
-class PatchCoreArgs:
+class PatchCoreArgs(Args):
     contamination_ratio : float = 0.0
     visual_test_path = None
     model_checkpoint_path = "./patch.pt"
@@ -40,13 +39,14 @@ class PatchCoreArgs:
 
 
 def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
+    train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category)
     # initialize the feature extractor
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)
 
-    train_dataloader = torch.utils.data.DataLoader(args.train_dataset, batch_size=args.batch_size, shuffle=True,
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
                                                    drop_last=True)
 
-    test_dataloader = torch.utils.data.DataLoader(args.test_dataset, batch_size=args.batch_size, shuffle=True,
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True,
                                                   drop_last=True)
 
     # define the model
@@ -69,8 +69,10 @@ def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
     gc.collect()
 
 def test_patchcore(args: PatchCoreArgs, logger=None) -> None:
-    print(f"Length test dataset: {len(args.test_dataset)}")
-    test_dataloader = torch.utils.data.DataLoader(args.test_dataset, batch_size=32, shuffle=True)
+    dataset_factory = DatasetFactory(args.dataset_config)
+    test_dataset = dataset_factory.build(args.dataset_type, Split.TEST,  args.category)
+    print(f"Length test dataset: {len(test_dataset)}")
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=True)
 
     # load the model
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)

@@ -1,4 +1,4 @@
-from benchmark_config import DatasetConfig
+from benchmark_config import DatasetRunConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.utilities.configurations import TaskType, Split
@@ -21,7 +21,7 @@ from moviad.entrypoints.padim import train_padim
 from moviad.utilities.configurations import TaskType, Split
 import shutil
 
-config = DatasetConfig('./config.yaml')
+config = DatasetRunConfig('./config.yaml')
 
 REAL_IAD_JSON_ROOT_PATH = config.realiad_json_root_path
 

@@ -8,20 +8,21 @@ import torch
 from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
 
+from moviad.common.args import Args
+from moviad.datasets.builder import DatasetFactory, DatasetType, DatasetConfig
 from moviad.datasets.common import IadDataset
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
+from moviad.entrypoints.common import load_datasets
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.models.cfa.cfa import CFA
 from moviad.trainers.trainer_cfa import TrainerCFA
-from moviad.utilities.configurations import TaskType
+from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.evaluator import Evaluator
 
 
 @dataclass
-class CFAArguments:
-    train_dataset: IadDataset = None
-    test_dataset: IadDataset = None
-    batch_size: int = 2 # default value
+class CFAArguments(Args):
+    batch_size: int = 4 # default value
     category: str = None
     backbone: str = None
     ad_layers: list = None
@@ -29,20 +30,24 @@ class CFAArguments:
     save_path: str = "./temp.pt"
     model_checkpoint_path: str = f"./patch.pt"
     visual_test_path: str = None
-    device: torch.device = None
-    contamination_ratio: float = 0.0
-    seed: int = 4
+
 
 def train_cfa(args: CFAArguments, logger=None):
-    gamma_c = 1
-    gamma_d = 1
+    train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category)
+    if args.contamination_ratio:
+        train_dataset.contaminate(test_dataset, args.contamination_ratio)
+        contamination = train_dataset.compute_contamination_ratio()
+        logger.config.update({
+            "contamination": contamination
+        }, allow_val_change=True) if logger is not None else None
+
     print(f"Training CFA for category: {args.category} \n")
-    print(f"Length train dataset: {len(args.train_dataset)}")
-    train_dataloader = torch.utils.data.DataLoader(args.train_dataset, batch_size=args.batch_size, shuffle=True,
+    print(f"Length train dataset: {len(train_dataset)}")
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
                                                    drop_last=True)
 
-    print(f"Length test dataset: {len(args.test_dataset)}")
-    test_dataloader = torch.utils.data.DataLoader(args.test_dataset, batch_size=args.batch_size, shuffle=True,
+    print(f"Length test dataset: {len(test_dataset)}")
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True,
                                                   drop_last=True)
 
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device)
@@ -64,20 +69,21 @@ def train_cfa(args: CFAArguments, logger=None):
 
 
 def test_cfa(args: CFAArguments, logger=None):
-    gamma_c = 1
-    gamma_d = 1
+    dataset_factory = DatasetFactory(args.dataset_config)
+    test_dataset = dataset_factory.build(args.dataset_type, args.dataset_split.TEST, args.category)
+    test_dataset.load_dataset()
 
     if logger is not None:
         logger.config.update({
             "ad_model": "cfa",
-            "dataset": type(args.test_dataset).__name__,
+            "dataset": type(test_dataset).__name__,
             "category": args.category,
             "backbone": args.backbone,
             "ad_layers": args.ad_layers,
         }, allow_val_change=True)
 
-    print(f"Length test dataset: {len(args.test_dataset)}")
-    test_dataloader = torch.utils.data.DataLoader(args.test_dataset, batch_size=args.batch_size, shuffle=True)
+    print(f"Length test dataset: {len(test_dataset)}")
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 
     # load the model
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)

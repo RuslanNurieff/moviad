@@ -7,7 +7,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from dataclasses import dataclass
 
+from moviad.common.args import Args
 from moviad.datasets.common import IadDataset
+from moviad.entrypoints.common import load_datasets
 from moviad.models.padim.padim import Padim
 from moviad.trainers.trainer_padim import PadimTrainer
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
@@ -20,22 +22,20 @@ OUTPUT_SIZE = (224, 224)
 
 
 @dataclass
-class PadimArgs:
+class PadimArgs(Args):
     train_dataset: IadDataset = None
     test_dataset: IadDataset = None
     category: str = None
     backbone: str = None
     ad_layers: list = None
-    device: torch.device = None
     model_checkpoint_save_path: str = None
     diagonal_convergence: bool = False
     results_dirpath: str = None
     logger = None
-    batch_size: int = 2
-    contamination_ratio: float = 0.0
 
 
 def train_padim(args: PadimArgs, logger=None) -> None:
+    train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category)
     padim = Padim(
         args.backbone,
         args.category,
@@ -53,14 +53,14 @@ def train_padim(args: PadimArgs, logger=None) -> None:
     )
 
     train_dataloader = DataLoader(
-        args.train_dataset, batch_size=args.batch_size, pin_memory=True, drop_last=True
+        train_dataset, batch_size=args.batch_size, pin_memory=True, drop_last=True
     )
 
     trainer.train(train_dataloader, logger)
 
     # evaluate the model
     test_dataloader = DataLoader(
-        args.test_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True
+        test_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True
     )
 
     evaluator = Evaluator(test_dataloader=test_dataloader, device=args.device)
