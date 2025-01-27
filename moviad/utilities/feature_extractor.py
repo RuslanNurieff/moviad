@@ -57,7 +57,9 @@ class FeatureExtractor:
         # Send model to the device.
         self.device = device
         self.model.to(device)
+        self.bathced_cpu = [
 
+        ]
         # Freeze the model.
         self.model.eval()
         for param in self.model.parameters():

@@ -6,10 +6,9 @@ import wandb
 from torchvision.transforms import transforms, InterpolationMode
 from transformers.pipelines.question_answering import Dataset
 
-from benchmark.benchmark_config import DatasetRunConfig, DatasetConfig
 from benchmark_common import mvtec_train_dataset, real_iad_train_dataset, visa_train_dataset, mvtec_test_dataset, \
     real_iad_test_dataset, visa_test_dataset, backbones
-from moviad.datasets.builder import DatasetType
+from moviad.datasets.builder import DatasetType, DatasetConfig
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.entrypoints.cfa import train_cfa, CFAArguments, test_cfa
 

@@ -30,8 +30,7 @@ def compute_product_quantization_efficiency(coreset: np.ndarray, compressed_core
     compressed_bitrate = (compressed_np_array_type.itemsize * np.prod(compressed_shape) + product_quantized_config_size) * 8
     compression_efficiency = 1 - compressed_bitrate / original_bitrate
     dequantized_coreset = quantizer.decode(compressed_coreset).cpu().numpy()
-    distortion = np.mean((coreset - dequantized_coreset) ** 2)
-
+    distortion = (np.linalg.norm(coreset - dequantized_coreset)/np.linalg.norm(coreset))
     return compression_efficiency, distortion
 
 

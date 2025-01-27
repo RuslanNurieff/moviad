@@ -19,6 +19,20 @@ import json
 from moviad.utilities.pil_image_utils import min_max_scale_image
 
 
+class VisaClasses(Enum):
+    CANDLE = "candle"
+    CAPSULES = "capsules"
+    CASHEW = "cashew"
+    CHEWINGGUM = "chewinggum"
+    FRYUM = "fryum"
+    MACARONI1 = "macaroni1"
+    MACARONI2 = "macaroni2"
+    PCB1 = "pcb1"
+    PCB2 = "pcb2"
+    PCB3 = "pcb3"
+    PCB4 = "pcb4"
+    PIPE_FRYUM = "pipe_fryum"
+
 class VisaAnomalyClass(Enum):
     """
     Enum class for anomaly

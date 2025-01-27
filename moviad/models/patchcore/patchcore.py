@@ -6,19 +6,18 @@
 from __future__ import annotations
 
 import os
-import pathlib
 
-import faiss
+import cv2 as cv
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn.functional as F
+from memory_profiler import profile
 from torch import Tensor, nn
-import cv2 as cv
-import numpy as np
-import matplotlib.pyplot as plt
 
 from .product_quantizer import ProductQuantizer
-from ...utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from ...models.patchcore.anomaly_map import AnomalyMapGenerator
+from ...utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from ...utilities.get_sizes import *
 
 
@@ -32,8 +31,8 @@ class PatchCore(nn.Module):
         feature_extractor: CustomFeatureExtractor,
         num_neighbors: int = 9,
         apply_quantization: bool = False,
-    ) -> None: 
-        
+    ) -> None:
+
         """
         Constructor of the patch-core model
 
@@ -59,6 +58,22 @@ class PatchCore(nn.Module):
         self.apply_quantization = apply_quantization
         if apply_quantization:
             self.product_quantizer = ProductQuantizer()
+
+    def load(self, model_state_dict_patch, quantizer_state_dict_path):
+        """
+        Load the Patchcore model
+
+        Parameters:
+        ----------
+            model_state_dict_patch (dict): model state dictionary
+            quantizer_state_dict_patch (dict): quantizer state dictionary
+        """
+
+        self.load_model(model_state_dict_patch)
+        if quantizer_state_dict_path is not None:
+            self.product_quantizer = ProductQuantizer()
+            self.product_quantizer.load(quantizer_state_dict_path)
+            self.apply_quantization = True
 
     def forward(self, input_tensor: Tensor) -> Tensor | dict[str, Tensor]:
         """Return Embedding during training, or a tuple of anomaly map and anomaly score during testing.
@@ -108,14 +123,15 @@ class PatchCore(nn.Module):
 
         if self.training:
             output = embedding
-        else: 
-            self.memory_bank.to(self.device)
-
+        else:
             if self.feature_extractor.quantized:
                 embedding = torch.int_repr(embedding).to(torch.float64)
 
             # apply nearest neighbor search
-            patch_scores, locations = self.nearest_neighbors(embedding=embedding, n_neighbors=1)
+            if self.apply_quantization:
+                patch_scores, locations = self.nearest_neighbors_quantized(embedding=embedding, n_neighbors=1)
+            else:
+                patch_scores, locations = self.nearest_neighbors(embedding=embedding, n_neighbors=1)
 
             # print(patch_scores.shape)
             # print("Locations" + str(locations.shape))
@@ -126,7 +142,7 @@ class PatchCore(nn.Module):
 
             # compute the anomaly score of the images
             pred_scores = self.compute_anomaly_score(patch_scores, locations, embedding)
-            
+
             # reshape to w,h
             patch_scores = patch_scores.reshape((batch_size, 1, width, height))
 
@@ -135,9 +151,9 @@ class PatchCore(nn.Module):
 
             output = (anomaly_maps, pred_scores)
 
-        return output 
+        return output
 
-    def generate_embedding(self, features: dict[str, Tensor]) -> Tensor: 
+    def generate_embedding(self, features: dict[str, Tensor]) -> Tensor:
         """Generate embedding from hierarchical feature map.
 
         Args:
@@ -191,13 +207,13 @@ class PatchCore(nn.Module):
         Returns:
             Matrix of distances between row vectors in x and y.
         """
-        
-        if quantized: 
+
+        if quantized:
             return torch.cdist(x.dequantize(), y.dequantize())
         else:
             return torch.cdist(x, y)
-        
-    def nearest_neighbors(self, embedding: Tensor, n_neighbors: int) -> tuple[Tensor, Tensor]:
+
+    def nearest_neighbors(self, embedding: Tensor, n_neighbors: int, memory_bank: torch.Tensor = None) -> tuple[Tensor, Tensor]:
         """
         Nearest neighbors using brute force method and euclidean norm.
 
@@ -209,21 +225,58 @@ class PatchCore(nn.Module):
             Tensor: Patch scores.
             Tensor: Locations of the nearest neighbor(s).
         """
-        memory_bank = self.memory_bank
-        if self.apply_quantization:
-            assert self.product_quantizer is not None
-            memory_bank = self.product_quantizer.decode(memory_bank)
-            memory_bank = memory_bank.to(self.device)
+        if memory_bank is None:
+            memory_bank = self.memory_bank
 
         distances = PatchCore.euclidean_distance(embedding, memory_bank, quantized=self.feature_extractor.quantized)
 
         if n_neighbors == 1:
             patch_scores, locations = distances.min(1)
-        else: 
+        else:
             patch_scores, locations = distances.topk(k = n_neighbors, largest = False, dim = 1)
-        
-        return patch_scores, locations 
-    
+
+        return patch_scores, locations
+
+    def nearest_neighbors_quantized(self, embedding: Tensor, n_neighbors: int) -> tuple[Tensor, Tensor]:
+        """
+        Nearest neighbors using brute force method and euclidean norm.
+
+        Args:
+            embedding (Tensor): Features to compare the distance with the memory bank.
+            n_neighbors (int): Number of neighbors to look at
+
+        Returns:
+            Tensor: Patch scores.
+            Tensor: Locations of the nearest neighbor(s).
+        """
+        self.memory_bank = self.memory_bank.to(self.device)
+
+        quantized_embedding = self.product_quantizer.encode(embedding)
+        quantized_embedding = quantized_embedding.to(self.device)
+        distances = PatchCore.euclidean_distance(quantized_embedding, self.memory_bank,
+                                                 quantized=self.feature_extractor.quantized)
+
+        # Top 100 nearest neighbors
+        top_100_patch_scores, top_100_locations = distances.topk(k=10, largest=False, dim=1)
+
+        # Decode the top 100 neighbors from the memory bank
+        top_100_neighbors = self.memory_bank[top_100_locations]
+        patch_scores = []
+        locations = []
+        for embedding_index in range(top_100_neighbors.size(0)):
+            neighbours = top_100_neighbors[embedding_index]
+            decoded_neighbors = self.product_quantizer.decode(neighbours)
+            embedding_value = embedding[embedding_index].unsqueeze(0)
+            decoded_neighbors = decoded_neighbors.to(self.device)
+            neighbour_distances = PatchCore.euclidean_distance(embedding_value, decoded_neighbors, quantized=False)
+            top_patch_score, top_location = neighbour_distances.topk(k=n_neighbors, largest=False, dim=1)
+            patch_scores.append(top_patch_score)
+            locations.append(top_location)
+        patch_scores = torch.cat(patch_scores, dim=0).squeeze()
+        locations = torch.cat(locations, dim=0).squeeze()
+        return patch_scores, locations
+
+
     def compute_anomaly_score(self, patch_scores: Tensor, locations: Tensor, embedding: Tensor) -> Tensor:
         """
         Compute Image-Level Anomaly Score.
@@ -245,36 +298,57 @@ class PatchCore(nn.Module):
         # Don't need to compute weights if num_neighbors is 1
         if self.num_neighbors == 1:
             return patch_scores.amax(1)
-        
+
         batch_size, num_patches = patch_scores.shape
         # 1. Find the patch with the largest distance to it's nearest neighbor in each image
         max_patches = torch.argmax(patch_scores, dim=1)  # indices of m^test,* in the paper
         # m^test,* in the paper
         max_patches_features = embedding.reshape(batch_size, num_patches, -1)[torch.arange(batch_size), max_patches]
-        
+
         # 2. Find the distance of the patch to it's nearest neighbor, and the location of the nn in the membank
         score = patch_scores[torch.arange(batch_size), max_patches]  # s^* in the paper
         nn_index = locations[torch.arange(batch_size), max_patches]  # indices of m^* in the paper
-        
+
         # 3. Find the support samples of the nearest neighbor in the membank
         nn_sample = memory_bank[nn_index, :]  # m^* in the paper
-        
+
         # indices of N_b(m^*) in the paper
         memory_bank_effective_size = memory_bank.shape[0]  # edge case when memory bank is too small
-        _, support_samples = self.nearest_neighbors(
-            nn_sample,
-            n_neighbors=min(self.num_neighbors, memory_bank_effective_size),
-        )
-        
+        if self.apply_quantization:
+            _, support_samples = self.nearest_neighbors_quantized(
+                nn_sample,
+                n_neighbors=min(self.num_neighbors, memory_bank_effective_size),
+            )
+        else:
+            _, support_samples = self.nearest_neighbors(
+                nn_sample,
+                n_neighbors=min(self.num_neighbors, memory_bank_effective_size),
+            )
+
         # 4. Find the distance of the patch features to each of the support samples
         distances = PatchCore.euclidean_distance(max_patches_features.unsqueeze(1), memory_bank[support_samples], self.feature_extractor.quantized)
-        
+
         # 5. Apply softmax to find the weights
         weights = (1 - F.softmax(distances.squeeze(1), 1))[..., 0]
 
         # 6. Apply the weight factor to the score
         return weights * score  # s in the paper
-    
+
+    def save_model(self, output_path):
+        """
+        Save the Patchcore model
+
+        Parameters:
+        ----------
+            output_path (str): where the model will be saved
+        """
+
+        model_state_dict = self.state_dict()
+        if self.apply_quantization:
+            assert self.product_quantizer is not None
+            self.product_quantizer.save(output_path + "/product_quantizer.bin")
+        torch.save(model_state_dict, output_path + "/patchcore_model.pt")
+
     def save_anomaly_map(self, dirpath, anomaly_map, pred_score, filepath, x_type, mask):
         """
         Args:
@@ -286,7 +360,7 @@ class PatchCore(nn.Module):
         """
         def min_max_norm(image):
             a_min, a_max = image.min(), image.max()
-            return (image - a_min) / (a_max - a_min)    
+            return (image - a_min) / (a_max - a_min)
 
         def cvt2heatmap(gray):
             return cv.applyColorMap(np.uint8(gray), cv.COLORMAP_JET)
@@ -325,11 +399,11 @@ class PatchCore(nn.Module):
         axes[2].imshow(output_image)
         axes[2].set_title(f'Heatmap {pred_score}')
         axes[2].axis('off')
-        
+
         # Show the plot
         plt.savefig(str(dirpath + f"/{x_type}_{filename}.jpg"))
 
-    def get_model_size_and_macs(self): 
+    def get_model_size_and_macs(self):
         sizes = {}
 
         # get feature extractor size, params, and macs
@@ -337,7 +411,7 @@ class PatchCore(nn.Module):
         macs, params = get_model_macs(self.feature_extractor.model)
         sizes["feature_extractor"] = {
             "size" : get_torch_model_size(self.feature_extractor.model),
-            "params" : params, 
+            "params" : params,
             "macs" : macs
         }
 
@@ -347,11 +421,11 @@ class PatchCore(nn.Module):
             "type" : str(self.memory_bank.dtype),
             "shape" : self.memory_bank.shape
         }
-        
-        total_size = sizes["feature_extractor"]["size"] + sizes["memory_bank"]["size"] 
+
+        total_size = sizes["feature_extractor"]["size"] + sizes["memory_bank"]["size"]
 
         return sizes, total_size
-    
+
     def load_model(self, path):
 
         """

@@ -208,10 +208,12 @@ class Padim(nn.Module):
         I = np.identity(C)
         # for every "patch" in the feature map, compute the covariance across the batch
         for i in range(H * W):
+            # TODO: use np.var instead of np.cov in diagonal covariance computation
             temp_cov = (
                     np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
                     + 0.01 * I
             )
+
             diagonal_cov[:, i] = np.diag(temp_cov)
 
         if update_params:

@@ -68,6 +68,7 @@ class DatasetFactory:
                 self.config.visa_root_path,
                 self.config.visa_csv_path,
                 split=split,
+                class_name=class_name,
                 image_size=image_size,
                 gt_mask_size=image_size
             )

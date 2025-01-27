@@ -8,11 +8,15 @@ class ProductQuantizer:
     subspaces: int
     centroids_per_subspace: int = 256
 
+    def __init__(self, subspaces = None, centroids_per_subspace: int = 256):
+        self.centroids_per_subspace = centroids_per_subspace
+        self.subspaces = subspaces
+
     def fit(self, input: torch.Tensor | np.ndarray, dim=1) -> None:
         if isinstance(input, torch.Tensor):
             input = input.cpu().numpy()
         self.dim = dim
-        self.subspaces = self.__compute_optimal_m(input)
+        self.subspaces = self.__compute_optimal_m(input) if self.subspaces is None else self.subspaces
 
         self.quantizer = faiss.IndexPQ(input.shape[dim], self.subspaces, int(np.log2(self.centroids_per_subspace)))
         self.quantizer.train(input)
@@ -22,6 +26,7 @@ class ProductQuantizer:
         if isinstance(input, torch.Tensor):
             input = input.cpu().numpy()
 
+        self.subspaces = self.__compute_optimal_m(input) if self.subspaces is None else self.subspaces
         compressed = np.zeros((input.shape[dim], self.subspaces), dtype=np.uint8)
 
         self.quantizer.sa_encode(input, compressed)

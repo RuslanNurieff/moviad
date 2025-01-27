@@ -4,7 +4,8 @@ import unittest
 import torch
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms, InterpolationMode
-from benchmark_config import DatasetConfig
+
+from moviad.datasets.builder import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.entrypoints.padim import PadimArgs
 from moviad.models.padim.padim import Padim

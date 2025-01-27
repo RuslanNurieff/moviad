@@ -83,9 +83,11 @@ class KCenterGreedy:
         self,
         z_lib, 
         n : int = 1000,
+        k : int = 30000,
         eps : float = 0.90,
         float16 : bool = True,
         force_cpu : bool = False,
+
     ):
         """Returns n coreset idx for given z_lib.
         
@@ -134,7 +136,7 @@ class KCenterGreedy:
             z_lib = z_lib.to("cuda")
             min_distances = min_distances.to("cuda")
 
-        for _ in tqdm(range(30000)):
+        for _ in tqdm(range(k)):
             distances = torch.linalg.norm(z_lib-last_item, dim=1, keepdims=True) # broadcasting step
             # distances = torch.sum(torch.pow(z_lib-last_item, 2), dim=1, keepdims=True) # broadcasting step
             min_distances = torch.minimum(distances, min_distances) # iterative step

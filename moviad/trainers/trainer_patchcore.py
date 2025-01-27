@@ -66,19 +66,25 @@ class TrainerPatchCore():
             #print(f"Embeddings Shape: {embeddings.shape}")
 
             torch.cuda.empty_cache()
+
+            # if self.patchore_model.apply_quantization:
+            #     self.patchore_model.product_quantizer.fit(embeddings)
+            #     embeddings = self.patchore_model.product_quantizer.encode(embeddings)
+
             
             #apply coreset reduction
             print("Coreset Extraction:")
             sampler = KCenterGreedy(embeddings, self.patchore_model.feature_extractor.quantized, self.device)
             sampled_idxs = sampler.get_coreset_idx_randomp(embeddings.cpu())
             coreset = embeddings[sampled_idxs]
+            coreset = torch.tensor(coreset).to(self.device)
 
             if self.patchore_model.apply_quantization:
                 assert self.patchore_model.product_quantizer is not None, "Product Quantizer not initialized"
 
                 self.patchore_model.product_quantizer.fit(coreset)
                 coreset = self.patchore_model.product_quantizer.encode(coreset)
-                coreset = torch.tensor(coreset).to(self.device)
+
 
 
             self.patchore_model.memory_bank = coreset

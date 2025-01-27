@@ -40,40 +40,34 @@ class RealIadCategory:
     value: str
     json_path: str
 
-
-REAL_IAD_CATEGORIES_JSONS = {
-    "audiojack": "audiojack.json",
-    "bottle": "bottle.json",
-    "cable": "cable.json",
-    "capsule": "capsule.json",
-    "carpet": "carpet.json",
-    "grid": "grid.json",
-    "hazelnut": "hazelnut.json",
-    "leather": "leather.json",
-    "metal_nut": "metal_nut.json",
-    "vcpill": "vcpill.json",
-    "screw": "screw.json",
-    "tile": "tile.json",
-    "toothbrush": "toothbrush.json",
-}
-
 class RealIadClassEnum(Enum):
-    TOY = "toy"
-    PHONE_BATTERY = "phone_battery"
-    AUDIOJACK = "audiojack"
-    BOTTLE = "bottle"
-    CABLE = "cable"
-    PCB = "pcb"
-    CAPSULE = "capsule"
-    CARPET = "carpet"
-    GRID = "grid"
-    HAZELNUT = "hazelnut"
-    LEATHER = "leather"
-    METAL_NUT = "metal_nut"
-    VCPILL = "vcpill"
-    SCREW = "screw"
-    TILE = "tile"
-    TOOTHBRUSH = "toothbrush"
-    TRANSISTOR = "transistor"
-    WOOD = "wood"
-    ZIPPER = "zipper"
+    AUDIOJACK = 'audiojack'
+    BOTTLE_CAP = 'bottle_cap'
+    BUTTON_BATTERY = 'button_battery'
+    END_CAP = 'end_cap'
+    ERASER = 'eraser'
+    FIRE_HOOD = 'fire_hood'
+    MINT = 'mint'
+    MOUNTS = 'mounts'
+    PCB = 'pcb'
+    PHONE_BATTERY = 'phone_battery'
+    PLASTIC_NUT = 'plastic_nut'
+    PLASTIC_PLUG = 'plastic_plug'
+    PORCELAIN_DOLL = 'porcelain_doll'
+    REGULATOR = 'regulator'
+    ROLLED_STRIP_BASE = 'rolled_strip_base'
+    SIM_CARD_SET = 'sim_card_set'
+    SWITCH = 'switch'
+    TAPE = 'tape'
+    TERMINALBLOCK = 'terminalblock'
+    TOOTHBRUSH = 'toothbrush'
+    TOY = 'toy'
+    TOY_BRICK = 'toy_brick'
+    TRANSISTOR1 = 'transistor1'
+    U_BLOCK = 'u_block'
+    USB = 'usb'
+    USB_ADAPTOR = 'usb_adaptor'
+    VCPILL = 'vcpill'
+    WOODEN_BEADS = 'wooden_beads'
+    WOODSTICK = 'woodstick'
+    ZIPPER = 'zipper'

@@ -1,4 +1,5 @@
 import math
+from enum import Enum
 from typing import Optional
 
 from numpy.ma.core import indices
@@ -38,6 +39,25 @@ CATEGORIES = (
     "wood",
     "zipper",
 )
+
+class MvtecClassEnum(Enum):
+    BOTTLE = "bottle"
+    CABLE = "cable"
+    CAPSULE = "capsule"
+    CARPET = "carpet"
+    GRID = "grid"
+    HAZELNUT = "hazelnut"
+    LEATHER = "leather"
+    METAL_NUT = "metal_nut"
+    PILL = "pill"
+    SCREW = "screw"
+    TILE = "tile"
+    TOOTHBRUSH = "toothbrush"
+    TRANSISTOR = "transistor"
+    WOOD = "wood"
+    ZIPPER = "zipper"
+
+
 
 IMG_SIZE = (3, 900, 900)
 
