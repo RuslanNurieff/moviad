@@ -42,6 +42,15 @@ def update_dataframe(df, run):
 def save_dataframe(df, csv_file):
     df.to_csv(csv_file, index=False)
 
+def run_exists(df, run):
+    existing_row = df[(df["Method"] == run.model) &
+                      (df["Dataset type"] == run.dataset_type) &
+                      (df["Class name"] == run.class_name) &
+                      (df["Backbone"] == run.backbone) &
+                      (df["AD layers"] == str(run.ad_layers)) &
+                      (df["Contamination"] == run.contamination)]
+    return not existing_row.empty
+
 
 def benchmark_cfa(args: CFAArguments, df, csv_file):
     logger = wandb.init(project="moviad_benchmark", group="cfa")
@@ -166,9 +175,11 @@ def main(benchmark_args: BenchmarkArgs):
     else:
         df = pd.DataFrame(columns=columns)
 
-    # Iterate through all the BenchmarkRun instances in the BenchmarkConfig
     for benchmark_run in benchmark_config.get_benchmark_runs():
         for run in benchmark_run.get_runs():
+            if run_exists(df, run):
+                print(f"Run already exists: {run.model}, {run.dataset_type}, {run.class_name}, {run.backbone}, {run.ad_layers}, {run.contamination}")
+                continue
             print(f"Method: {run.model}")
             print(f"Dataset type: {run.dataset_type}")
             print(f"Class name: {run.class_name}")
@@ -176,75 +187,78 @@ def main(benchmark_args: BenchmarkArgs):
             print(f"AD layers: {run.ad_layers}")
             print(f"Contamination: {run.contamination}")
             print("-------------------------------------")
-            
-            if run.model == 'cfa':
-                args = CFAArguments(
-                    dataset_config=dataset_config,
-                    dataset_type=run.dataset_type,
-                    category=run.class_name,
-                    backbone=run.backbone,
-                    ad_layers=run.ad_layers,
-                    contamination_ratio=run.contamination,
-                    seed=seed
-                )
-                try:
-                    benchmark_cfa(args, df, csv_file)
-                    df = update_dataframe(df, run)
-                    save_dataframe(df, csv_file)
-                except DatasetTooSmallToContaminateException:
-                    print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
-                    continue
-            elif run.model == 'padim':
-                args = PadimArgs(
-                    dataset_config=dataset_config,
-                    dataset_type=run.dataset_type,
-                    category=run.class_name,
-                    backbone=run.backbone,
-                    ad_layers=run.ad_layers,
-                    contamination_ratio=run.contamination,
-                    seed=seed
-                )
-                try:
-                    benchmark_padim(args, df, csv_file)
-                    df = update_dataframe(df, run)
-                    save_dataframe(df, csv_file)
-                except DatasetTooSmallToContaminateException:
-                    print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
-                    continue
-            elif run.model == 'patchcore':
-                args = PatchCoreArgs(
-                    dataset_config=dataset_config,
-                    dataset_type=run.dataset_type,
-                    category=run.class_name,
-                    backbone=run.backbone,
-                    ad_layers=run.ad_layers,
-                    contamination_ratio=run.contamination,
-                    seed=seed
-                )
-                try:
-                    benchmark_patchcore(args, df, csv_file)
-                    df = update_dataframe(df, run)
-                    save_dataframe(df, csv_file)
-                except DatasetTooSmallToContaminateException:
-                    print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
-                    continue
-            elif run.model == 'stfpm':
-                args = STFPMArgs(
-                    dataset_config=dataset_config,
-                    dataset_type=run.dataset_type,
-                    categories=[run.class_name],
-                    backbone=run.backbone,
-                    ad_layers=run.ad_layers,
-                    contamination_ratio=run.contamination,
-                    seed=seed
-                )
-                try:
-                    benchmark_stfpm(args, df, csv_file)
-                    df = update_dataframe(df, run)
-                    save_dataframe(df, csv_file)
-                except DatasetTooSmallToContaminateException:
-                    print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
-                    continue
+            try:
+                if run.model == 'cfa':
+                    args = CFAArguments(
+                        dataset_config=dataset_config,
+                        dataset_type=run.dataset_type,
+                        category=run.class_name,
+                        backbone=run.backbone,
+                        ad_layers=run.ad_layers,
+                        contamination_ratio=run.contamination,
+                        seed=seed
+                    )
+                    try:
+                        benchmark_cfa(args, df, csv_file)
+                        df = update_dataframe(df, run)
+                        save_dataframe(df, csv_file)
+                    except DatasetTooSmallToContaminateException:
+                        print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
+                        continue
+                elif run.model == 'padim':
+                    args = PadimArgs(
+                        dataset_config=dataset_config,
+                        dataset_type=run.dataset_type,
+                        category=run.class_name,
+                        backbone=run.backbone,
+                        ad_layers=run.ad_layers,
+                        contamination_ratio=run.contamination,
+                        seed=seed
+                    )
+                    try:
+                        benchmark_padim(args, df, csv_file)
+                        df = update_dataframe(df, run)
+                        save_dataframe(df, csv_file)
+                    except DatasetTooSmallToContaminateException:
+                        print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
+                        continue
+                elif run.model == 'patchcore':
+                    args = PatchCoreArgs(
+                        dataset_config=dataset_config,
+                        dataset_type=run.dataset_type,
+                        category=run.class_name,
+                        backbone=run.backbone,
+                        ad_layers=run.ad_layers,
+                        contamination_ratio=run.contamination,
+                        seed=seed
+                    )
+                    try:
+                        benchmark_patchcore(args, df, csv_file)
+                        df = update_dataframe(df, run)
+                        save_dataframe(df, csv_file)
+                    except DatasetTooSmallToContaminateException:
+                        print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
+                        continue
+                elif run.model == 'stfpm':
+                    args = STFPMArgs(
+                        dataset_config=dataset_config,
+                        dataset_type=run.dataset_type,
+                        categories=[run.class_name],
+                        backbone=run.backbone,
+                        ad_layers=run.ad_layers,
+                        contamination_ratio=run.contamination,
+                        seed=seed
+                    )
+                    try:
+                        benchmark_stfpm(args, df, csv_file)
+                        df = update_dataframe(df, run)
+                        save_dataframe(df, csv_file)
+                    except DatasetTooSmallToContaminateException:
+                        print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
+                        continue
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                continue
 
 
 
