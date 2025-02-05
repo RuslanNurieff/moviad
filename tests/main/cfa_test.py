@@ -12,8 +12,8 @@ from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.entrypoints.cfa import CFAArguments, train_cfa
 from moviad.utilities.configurations import TaskType, Split
-from tests.datasets.realiaddataset_tests import IMAGE_SIZE
-from tests.datasets.visadataset_tests import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
+from tests.datasets.realiaddataset_test import IMAGE_SIZE
+from tests.datasets.visadataset_test import VISA_DATASET_PATH, VISA_DATASET_CSV_PATH
 
 
 class CfaTrainTests(unittest.TestCase):

@@ -21,12 +21,13 @@ transform = transforms.Compose([
     transforms.ConvertImageDtype(torch.float32),
 ])
 
+CONFIG_PATH = 'tests\main\config.json'
 
 class PatchCoreTrainTests(unittest.TestCase):
 
     def setUp(self):
         self.args = PatchCoreArgs()
-        self.config = DatasetConfig("./config.json")
+        self.config = DatasetConfig(CONFIG_PATH)
         self.args.contamination_ratio = 0.25
         self.args.batch_size = 1
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -68,7 +69,6 @@ class PatchCoreTrainTests(unittest.TestCase):
         self.assertGreater(quantization_efficiency, 0)
         self.assertGreater(distortion, 0)
 
-    @profile
     def test_patchcore_with_quantization(self):
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
                                                    False, None)
@@ -90,9 +90,7 @@ class PatchCoreTrainTests(unittest.TestCase):
     def test_patchcore_with_quantization_and_load(self):
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
                                                    False, None)
-        train_dataloader = torch.utils.data.DataLoader(self.args.train_dataset, batch_size=self.args.batch_size,
-                                                       shuffle=True,
-                                                       drop_last=True)
+        
         test_dataloader = torch.utils.data.DataLoader(self.args.test_dataset, batch_size=self.args.batch_size,
                                                       shuffle=True,
                                                       drop_last=True)

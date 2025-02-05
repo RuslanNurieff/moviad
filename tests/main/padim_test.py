@@ -12,7 +12,7 @@ from moviad.models.padim.padim import Padim
 from moviad.trainers.trainer_padim import PadimTrainer
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.evaluator import Evaluator
-from tests.datasets.realiaddataset_tests import IMAGE_SIZE
+from tests.datasets.realiaddataset_test import IMAGE_SIZE
 
 
 

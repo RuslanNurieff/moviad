@@ -28,13 +28,13 @@ class KCenterGreedy:
         torch.Size([219, 1536])
     """
 
-    def __init__(self, embeddings: torch.Tensor, quantized, device: torch.device, sampling_ratio: float = 0.1) -> None:
+    def __init__(self, embeddings: torch.Tensor, quantized, device: torch.device, sampling_ratio: float = 0.1, k: int = 30000) -> None:
         
         self.embeddings = embeddings
         self.quantized = quantized
         self.coreset_size = int(embeddings.shape[0] * sampling_ratio)
         self.projector = SparseRandomProjection(n_components="auto", eps=0.90)
-
+        self.k = k
         self.features: torch.Tensor
         self.min_distances: torch.Tensor = None
         self.n_observations = self.embeddings.shape[0]
@@ -177,7 +177,7 @@ class KCenterGreedy:
         selected_coreset_idx: list[int] = []
         idx = int(torch.randint(high = self.n_observations, size =(1,)).item())
 
-        for _ in tqdm(range(30000)):
+        for _ in tqdm(range(self.k)):
             self.update_distances(cluster_centers = [idx])
             idx = self.get_new_idx()
 

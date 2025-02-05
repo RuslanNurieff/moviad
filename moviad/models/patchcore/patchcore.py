@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-
 import os
 
 import cv2 as cv
@@ -31,6 +30,7 @@ class PatchCore(nn.Module):
         feature_extractor: CustomFeatureExtractor,
         num_neighbors: int = 9,
         apply_quantization: bool = False,
+        k: int = 10000
     ) -> None:
 
         """
@@ -52,7 +52,7 @@ class PatchCore(nn.Module):
         self.feature_extractor = feature_extractor
         self.feature_pooler = torch.nn.AvgPool2d(3,1,1)
         self.anomaly_map_generator = AnomalyMapGenerator()
-
+        self.k = k
         self.register_buffer("memory_bank", Tensor())
         self.memory_bank: Tensor
         self.apply_quantization = apply_quantization

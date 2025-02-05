@@ -15,7 +15,7 @@ from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.pil_image_utils import IncreaseContrast
-from tests.main.patchcore_tests import transform
+from tests.main.patchcore_test import transform
 IMAGE_SIZE = (224, 224)
 
 

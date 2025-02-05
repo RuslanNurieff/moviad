@@ -74,7 +74,7 @@ class TrainerPatchCore():
             
             #apply coreset reduction
             print("Coreset Extraction:")
-            sampler = KCenterGreedy(embeddings, self.patchore_model.feature_extractor.quantized, self.device)
+            sampler = KCenterGreedy(embeddings, self.patchore_model.feature_extractor.quantized, self.device, k=self.patchore_model.k)
             sampled_idxs = sampler.get_coreset_idx_randomp(embeddings.cpu())
             coreset = embeddings[sampled_idxs]
             coreset = torch.tensor(coreset).to(self.device)
