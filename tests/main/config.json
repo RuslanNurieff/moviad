@@ -19,18 +19,18 @@
     {
       "model": "padim",
       "datasets": [
-        {
-          "type": "realiad",
-          "class": "audiojack"
-        },
-        {
-          "type": "mvtec",
-          "class": "bottle"
-        },
-        {
-          "type": "visa",
-          "class": "1cls"
-        }
+        {"type": "visa", "class": "candle"},
+        {"type": "visa", "class": "capsules"},
+        {"type": "visa", "class": "cashew"},
+        {"type": "visa", "class": "chewinggum"},
+        {"type": "visa", "class": "fryum"},
+        {"type": "visa", "class": "macaroni1"},
+        {"type": "visa", "class": "macaroni2"},
+        {"type": "visa", "class": "pcb1"},
+        {"type": "visa", "class": "pcb2"},
+        {"type": "visa", "class": "pcb3"},
+        {"type": "visa", "class": "pcb4"},
+        {"type": "visa", "class": "pipe_fryum"}
       ],
       "backbones": [
         {
@@ -38,20 +38,6 @@
             "features.4",
             "features.7",
             "features.10"
-          ]
-        },
-        {
-          "wide_resnet50_2": [
-            "layer1",
-            "layer2",
-            "layer3"
-          ]
-        },
-        {
-          "phinet_1.2_0.5_6_downsampling": [
-            2,
-            6,
-            7
           ]
         },
         {
@@ -81,39 +67,25 @@
     {
       "model": "cfa",
       "datasets": [
-        {
-          "type": "realiad",
-          "class": "audiojack"
-        },
-        {
-          "type": "mvtec",
-          "class": "bottle"
-        },
-        {
-          "type": "visa",
-          "class": "1cls"
-        }
-      ],
+        {"type": "visa", "class": "candle"},
+        {"type": "visa", "class": "capsules"},
+        {"type": "visa", "class": "cashew"},
+        {"type": "visa", "class": "chewinggum"},
+        {"type": "visa", "class": "fryum"},
+        {"type": "visa", "class": "macaroni1"},
+        {"type": "visa", "class": "macaroni2"},
+        {"type": "visa", "class": "pcb1"},
+        {"type": "visa", "class": "pcb2"},
+        {"type": "visa", "class": "pcb3"},
+        {"type": "visa", "class": "pcb4"},
+        {"type": "visa", "class": "pipe_fryum"}
+        ],
       "backbones": [
         {
           "mobilenet_v2": [
             "features.4",
             "features.7",
             "features.10"
-          ]
-        },
-        {
-          "wide_resnet50_2": [
-            "layer1",
-            "layer2",
-            "layer3"
-          ]
-        },
-        {
-          "phinet_1.2_0.5_6_downsampling": [
-            2,
-            6,
-            7
           ]
         },
         {

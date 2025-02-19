@@ -36,6 +36,9 @@ class PatchCoreArgs(Args):
     save_path: str = "./temp.pt"
     batch_size: int = 2
     device: torch.device = None
+    quantized: bool = False
+
+
 
 
 def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
@@ -50,7 +53,7 @@ def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
                                                   drop_last=True)
 
     # define the model
-    patchcore = PatchCore(args.device, input_size=args.img_input_size, feature_extractor=feature_extractor)
+    patchcore = PatchCore(args.device, input_size=args.img_input_size, feature_extractor=feature_extractor, apply_quantization=args.quantized)
     patchcore.to(args.device)
     patchcore.train()
 

@@ -86,7 +86,6 @@ class TrainerPatchCore():
                 coreset = self.patchore_model.product_quantizer.encode(coreset)
 
 
-
             self.patchore_model.memory_bank = coreset
 
             img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.patchore_model)

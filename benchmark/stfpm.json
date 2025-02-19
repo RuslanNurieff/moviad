@@ -1,0 +1,46 @@
+{
+  "settings": {
+    "debug": true
+  },
+  "datasets": {
+    "realiad": {
+      "root_path": "E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_256",
+      "json_root_path": "E:\\VisualAnomalyDetection\\datasets\\Real-IAD\\realiad_jsons"
+    },
+    "visa": {
+      "root_path": "E:\\VisualAnomalyDetection\\datasets\\visa",
+      "csv_path": "E:\\VisualAnomalyDetection\\datasets\\visa\\split_csv\\1cls.csv"
+    },
+    "mvtec": {
+      "root_path": "E:\\VisualAnomalyDetection\\datasets\\mvtec"
+    }
+  },
+  "benchmark":
+  [
+    {
+    "model": "stfpm",
+    "datasets": [
+      {"type": "visa", "class": "candle"},
+      {"type": "visa", "class": "capsules"},
+      {"type": "visa", "class": "cashew"},
+      {"type": "visa", "class": "chewinggum"},
+      {"type": "visa", "class": "fryum"},
+      {"type": "visa", "class": "macaroni1"},
+      {"type": "visa", "class": "macaroni2"},
+      {"type": "visa", "class": "pcb1"},
+      {"type": "visa", "class": "pcb2"},
+      {"type": "visa", "class": "pcb3"},
+      {"type": "visa", "class": "pcb4"},
+      {"type": "visa", "class": "pipe_fryum"}
+    ],
+    "backbones": [
+      {"mobilenet_v2": [[8, 9], [10, 11, 12]]},
+      {"wide_resnet50_2": [[3, 4, 5], [6, 7, 8]]},
+      {"phinet_1.2_0.5_6_downsampling": [[2, 6, 7], [8, 9, 10]]},
+      {"micronet-m1": [[2, 4, 5], [6, 8, 9]]},
+      {"mcunet-in3": [[3, 6, 9], [12, 15, 18]]}
+    ],
+      "contamination" : [0, 0.1, 0.15, 0.2]
+    }
+  ]
+}

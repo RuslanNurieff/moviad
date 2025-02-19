@@ -91,9 +91,10 @@ def benchmark_padim(args: PadimArgs, df, csv_file):
 
 
 def benchmark_patchcore(args: PatchCoreArgs, df, csv_file):
+    group_name = "patchcore_quantized" if args.quantized else "patchcore"
     logger = wandb.init(project="moviad_benchmark", group="patchcore")
     logger.config.update({
-        "ad_model": "patchcore",
+        "ad_model": group_name,
         "dataset": DatasetType.MVTec,
         "category": args.category,
         "backbone": args.backbone,
@@ -101,10 +102,10 @@ def benchmark_patchcore(args: PatchCoreArgs, df, csv_file):
         "seed": args.seed,
         "contamination_ratio": args.contamination_ratio
     }, allow_val_change=True)
-    logger.tags = ["patchcore", args.dataset_type, args.backbone]
+    logger.tags = [group_name, args.dataset_type, args.backbone]
     if args.contamination_ratio > 0:
         logger.tags += tuple(["contaminated"])
-    logger.name = f"patchcore_{args.dataset_type}_{args.backbone}"
+    logger.name = f"{group_name}_{args.dataset_type}_{args.backbone}"
     train_patchcore(args, logger)
     logger.finish()
 
@@ -114,7 +115,7 @@ def benchmark_stfpm(args: STFPMArgs, df, csv_file):
     logger.config.update({
         "ad_model": "stfpm",
         "dataset": DatasetType.MVTec,
-        "category": args.category,
+        "category": args.categories,
         "backbone": args.backbone,
         "ad_layers": args.ad_layers,
         "seed": args.seed,
@@ -213,7 +214,7 @@ def main(benchmark_args: BenchmarkArgs):
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
-                        seed=seed
+                        seed=seed,
                     )
                     try:
                         benchmark_padim(args, df, csv_file)
@@ -227,10 +228,30 @@ def main(benchmark_args: BenchmarkArgs):
                         dataset_config=dataset_config,
                         dataset_type=run.dataset_type,
                         category=run.class_name,
+                        img_input_size=(256, 256),
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
-                        seed=seed
+                        seed=seed,
+                    )
+                    try:
+                        benchmark_patchcore(args, df, csv_file)
+                        df = update_dataframe(df, run)
+                        save_dataframe(df, csv_file)
+                    except DatasetTooSmallToContaminateException:
+                        print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
+                        continue
+                elif run.model == 'patchcore_quantized':
+                    args = PatchCoreArgs(
+                        dataset_config=dataset_config,
+                        dataset_type=run.dataset_type,
+                        category=run.class_name,
+                        img_input_size=(256, 256),
+                        backbone=run.backbone,
+                        ad_layers=run.ad_layers,
+                        contamination_ratio=run.contamination,
+                        seed=seed,
+                        quantized=True
                     )
                     try:
                         benchmark_patchcore(args, df, csv_file)

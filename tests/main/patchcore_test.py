@@ -9,6 +9,7 @@ from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.entrypoints.patchcore import PatchCoreArgs, train_patchcore
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.patchcore.product_quantizer import ProductQuantizer
+from moviad.profiler.pytorch_profiler import torch_profile
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
@@ -21,7 +22,8 @@ transform = transforms.Compose([
     transforms.ConvertImageDtype(torch.float32),
 ])
 
-CONFIG_PATH = 'tests\main\config.json'
+CONFIG_PATH = 'config.json'
+
 
 class PatchCoreTrainTests(unittest.TestCase):
 
@@ -87,10 +89,11 @@ class PatchCoreTrainTests(unittest.TestCase):
 
         patchcore_model.save_model("./")
 
+    @torch_profile
     def test_patchcore_with_quantization_and_load(self):
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
                                                    False, None)
-        
+
         test_dataloader = torch.utils.data.DataLoader(self.args.test_dataset, batch_size=self.args.batch_size,
                                                       shuffle=True,
                                                       drop_last=True)

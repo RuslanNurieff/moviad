@@ -8,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 
 from moviad.common.args import Args
 from moviad.datasets.common import IadDataset
+from moviad.entrypoints.common import load_datasets
 from moviad.models.stfpm.stfpm import Stfpm
 from moviad.trainers.trainer_stfpm import train_param_grid_search
 from moviad.utilities.evaluator import Evaluator, append_results
@@ -70,6 +71,9 @@ class STFPMArgs(Args):
 def train_stfpm(params: STFPMArgs, logger = None) -> None:
     ad_model = "stfpm"
     print(f"Training with params: {params}")
+    train_dataset, test_dataset = load_datasets(params.dataset_config, params.dataset_type, params.categories[0])
+    params.train_dataset = train_dataset
+    params.test_dataset = test_dataset
     params.epochs = params.epochs * len(params.ad_layers)
     trained_models_filepaths = train_param_grid_search(params.to_dict(), logger)
 
