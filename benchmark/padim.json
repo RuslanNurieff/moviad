@@ -15,26 +15,70 @@
       "root_path": "E:\\VisualAnomalyDetection\\datasets\\mvtec"
     }
   },
-  "benchmark":
-  [
+  "benchmark": [
     {
-      "model": "stfpm",
+      "model": "padim",
       "datasets": [
-        { "type": "mvtec", "class": "bottle" },
-  { "type": "mvtec", "class": "cable" },
-  { "type": "mvtec", "class": "capsule" },
-  { "type": "mvtec", "class": "carpet" },
-  { "type": "mvtec", "class": "grid" },
-  { "type": "mvtec", "class": "hazelnut" },
-  { "type": "mvtec", "class": "leather" },
-  { "type": "mvtec", "class": "metal_nut" },
-  { "type": "mvtec", "class": "pill" },
-  { "type": "mvtec", "class": "screw" },
-  { "type": "mvtec", "class": "tile" },
-  { "type": "mvtec", "class": "toothbrush" },
-  { "type": "mvtec", "class": "transistor" },
-  { "type": "mvtec", "class": "wood" },
-  { "type": "mvtec", "class": "zipper" },
+        {
+          "type": "mvtec",
+          "class": "bottle"
+        },
+        {
+          "type": "mvtec",
+          "class": "cable"
+        },
+        {
+          "type": "mvtec",
+          "class": "capsule"
+        },
+        {
+          "type": "mvtec",
+          "class": "carpet"
+        },
+        {
+          "type": "mvtec",
+          "class": "grid"
+        },
+        {
+          "type": "mvtec",
+          "class": "hazelnut"
+        },
+        {
+          "type": "mvtec",
+          "class": "leather"
+        },
+        {
+          "type": "mvtec",
+          "class": "metal_nut"
+        },
+        {
+          "type": "mvtec",
+          "class": "pill"
+        },
+        {
+          "type": "mvtec",
+          "class": "screw"
+        },
+        {
+          "type": "mvtec",
+          "class": "tile"
+        },
+        {
+          "type": "mvtec",
+          "class": "toothbrush"
+        },
+        {
+          "type": "mvtec",
+          "class": "transistor"
+        },
+        {
+          "type": "mvtec",
+          "class": "wood"
+        },
+        {
+          "type": "mvtec",
+          "class": "zipper"
+        },
         {
           "type": "visa",
           "class": "candle"
@@ -207,71 +251,30 @@
       "backbones": [
         {
           "mobilenet_v2": [
-            [
-              8,
-              9
-            ],
-            [
-              10,
-              11,
-              12
-            ]
-          ]
-        },
-        {
-          "wide_resnet50_2": [
-            [
-              3,
-              4,
-              5
-            ],
-            [
-              6,
-              7,
-              8
-            ]
-          ]
-        },
-        {
-          "phinet_1.2_0.5_6_downsampling": [
-            [
-              2,
-              6,
-              7
-            ],
-            [
-              8,
-              9,
-              10
-            ]
+            "features.4",
+            "features.7",
+            "features.10"
           ]
         },
         {
           "micronet-m1": [
-            [
-              2,
-              4,
-              5
-            ],
-            [
-              6,
-              8,
-              9
-            ]
+            2,
+            4,
+            5
           ]
         },
         {
           "mcunet-in3": [
-            [
-              3,
-              6,
-              9
-            ],
-            [
-              12,
-              15,
-              18
-            ]
+            3,
+            6,
+            9
+          ]
+        },
+        {
+          "resnet18": [
+            "layer1",
+            "layer2",
+            "layer3"
           ]
         }
       ],
