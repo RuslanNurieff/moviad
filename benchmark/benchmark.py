@@ -1,5 +1,6 @@
 import argparse
 
+import torch
 from sympy import false
 
 import wandb
@@ -169,17 +170,19 @@ def benchmark_stfpm(args: STFPMArgs, df, csv_file):
 
 
 class BenchmarkArgs:
-    def __init__(self, config_file, mode,checklist_path):
+    def __init__(self, config_file, mode,checklist_path, device):
         self.config_file = config_file
         self.mode = mode
         self.checklist_path = checklist_path
+        self.device = device
 
     @classmethod
     def from_parser(cls, args):
         return cls(
             config_file=args.config_file,
             mode=args.mode,
-            checklist_path=args.checklist_path
+            checklist_path=args.checklist_path,
+            device=args.device
         )
 
 
@@ -188,6 +191,10 @@ def main(benchmark_args: BenchmarkArgs):
     dataset_config = DatasetConfig(benchmark_args.config_file)
     benchmark_config = BenchmarkConfig(benchmark_args.config_file)
     csv_file = "benchmark_checklist.csv" if benchmark_args.checklist_path is None else benchmark_args.checklist_path
+
+    device = torch.device(benchmark_args.device if torch.cuda.is_available() and benchmark_args.device is not None else "cpu")
+
+    print("DEVICE: ", device)
 
     if os.path.exists(csv_file):
         df = pd.read_csv(csv_file)
@@ -224,7 +231,8 @@ def main(benchmark_args: BenchmarkArgs):
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
-                        seed=seed
+                        seed=seed,
+                        device=device
                     )
 
                     benchmark_cfa(args, df, csv_file)
@@ -239,6 +247,7 @@ def main(benchmark_args: BenchmarkArgs):
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
                         seed=seed,
+                        device=device
                     )
                     benchmark_padim(args, df, csv_file)
                     state = "Completed"
@@ -252,6 +261,7 @@ def main(benchmark_args: BenchmarkArgs):
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
                         seed=seed,
+                        device=device
                     )
 
                     benchmark_patchcore(args, df, csv_file)
@@ -266,7 +276,8 @@ def main(benchmark_args: BenchmarkArgs):
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
                         seed=seed,
-                        quantized=True
+                        quantized=True,
+                        device=device
                     )
                     benchmark_patchcore(args, df, csv_file)
                     state = "Completed"
@@ -279,7 +290,8 @@ def main(benchmark_args: BenchmarkArgs):
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
-                        seed=seed
+                        seed=seed,
+                        device=device
                     )
 
                     benchmark_stfpm(args, df, csv_file)
@@ -321,6 +333,11 @@ if __name__ == '__main__':
                         type=str,
                         default=None,
                         help="Path of the checklist file")
+
+    parser.add_argument("--device",
+                        type=str,
+                        default=None,
+                        help="Device to run the benchmark")
 
     args = parser.parse_args()
     benchmark_args = BenchmarkArgs.from_parser(args)
