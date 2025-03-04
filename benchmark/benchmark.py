@@ -1,6 +1,7 @@
 import argparse
 
 import torch
+from PIL.PngImagePlugin import is_cid
 from sympy import false
 
 import wandb
@@ -186,13 +187,33 @@ class BenchmarkArgs:
         )
 
 
+def is_cuda_device_available(device_name):
+    if not torch.cuda.is_available():
+        return False
+
+    if device_name == "cpu":
+        return True
+
+    if device_name.startswith("cuda:"):
+        try:
+            device_index = int(device_name.split(":")[1])
+            return device_index < torch.cuda.device_count()
+        except (ValueError, IndexError):
+            return False
+
+    return False
+
 def main(benchmark_args: BenchmarkArgs):
     # Parse the config file into DatasetConfig and BenchmarkConfig
     dataset_config = DatasetConfig(benchmark_args.config_file)
     benchmark_config = BenchmarkConfig(benchmark_args.config_file)
     csv_file = "benchmark_checklist.csv" if benchmark_args.checklist_path is None else benchmark_args.checklist_path
 
-    device = torch.device(benchmark_args.device if torch.cuda.is_available() and benchmark_args.device is not None else "cpu")
+    if not is_cuda_device_available(benchmark_args.device):
+        raise RuntimeError(f"CUDA device '{benchmark_args.device}' is not available. "
+                           f"Available devices: CPU and CUDA devices 0 to {torch.cuda.device_count() - 1 if torch.cuda.is_available() else 'none'}")
+
+    device = torch.device(benchmark_args.device)
 
     print("DEVICE: ", device)
 
