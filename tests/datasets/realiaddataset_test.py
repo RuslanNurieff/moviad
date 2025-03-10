@@ -6,7 +6,7 @@ import torch
 from sympy import false
 from torchvision.transforms import transforms
 
-from benchmark_config import DatasetConfig
+from moviad.datasets.builder import DatasetConfig
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset, RealIadClassEnum
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadAnomalyClass
 from moviad.utilities.configurations import TaskType, Split

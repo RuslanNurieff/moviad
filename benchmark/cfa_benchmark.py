@@ -1,3 +1,4 @@
+import os
 import unittest
 from tokenize import group
 
@@ -32,7 +33,6 @@ class CfaBenchmark(unittest.TestCase):
             ),
             transforms.ConvertImageDtype(torch.float32),
         ])
-        wandb.setup(wandb.Settings(program=__name__, program_relpath=__name__))
 
 
     def test_cfa_mvtec(self):

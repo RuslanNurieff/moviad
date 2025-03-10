@@ -6,9 +6,6 @@ import pandas as pd
 from tqdm import tqdm
 
 import torch
-from sklearn.metrics import precision_score, recall_score, f1_score
-import matplotlib.pyplot as plt
-import cv2 as cv
 
 from ..utilities.metrics import *
 

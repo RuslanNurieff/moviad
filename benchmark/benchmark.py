@@ -136,7 +136,7 @@ def benchmark_patchcore(args: PatchCoreArgs, df, csv_file):
     logger = wandb.init(project="moviad_benchmark", group="patchcore")
     logger.config.update({
         "ad_model": group_name,
-        "dataset": DatasetType.MVTec,
+        "dataset": args.dataset_type,
         "category": args.category,
         "backbone": args.backbone,
         "ad_layers": args.ad_layers,

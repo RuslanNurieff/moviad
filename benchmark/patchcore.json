@@ -44,8 +44,7 @@
         "mcunet-in3": [3, 6, 9]
       },
       {
-        "resnet18": ["layer1", "layer2", "layer3"
-        ]
+        "resnet18": ["layer1", "layer2", "layer3"]
       }
     ],
       "contamination" : [0]

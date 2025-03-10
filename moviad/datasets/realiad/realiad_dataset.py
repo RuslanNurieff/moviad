@@ -46,15 +46,15 @@ class RealIadDataset(IadDataset):
 
         if transform is None:
             self.transform = transforms.Compose([
-            transforms.Resize(image_size),
-            transforms.PILToTensor(),
-            transforms.Resize(
-                image_size,
-                antialias=True,
-                interpolation=InterpolationMode.NEAREST,
-            ),
-            transforms.ConvertImageDtype(torch.float32),
-        ])
+                transforms.Resize(image_size),
+                transforms.PILToTensor(),
+                transforms.Resize(
+                    image_size,
+                    antialias=True,
+                    interpolation=InterpolationMode.NEAREST,
+                ),
+                transforms.ConvertImageDtype(torch.float32),
+            ])
 
     def compute_contamination_ratio(self) -> float:
         if self.data is None:
@@ -77,8 +77,9 @@ class RealIadDataset(IadDataset):
         contaminated_image_entries = [image for image in source.data.images if
                                       image.anomaly_class != RealIadAnomalyClass.OK]
         if len(contaminated_data_entries) < contamination_set_size:
-            raise DatasetTooSmallToContaminateException(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
-                             f"Found {len(contaminated_data_entries)} entries, but needed {contamination_set_size} entries")
+            raise DatasetTooSmallToContaminateException(
+                f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
+                f"Found {len(contaminated_data_entries)} entries, but needed {contamination_set_size} entries")
 
         contaminated_data_entries = np.random.choice(contaminated_data_entries, contamination_set_size,
                                                      replace=False).tolist()

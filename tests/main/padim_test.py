@@ -9,16 +9,17 @@ from moviad.datasets.builder import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.entrypoints.padim import PadimArgs
 from moviad.models.padim.padim import Padim
+from moviad.profiler.pytorch_profiler import Profiler
 from moviad.trainers.trainer_padim import PadimTrainer
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.evaluator import Evaluator
 from tests.datasets.realiaddataset_test import IMAGE_SIZE
 
-
+profiler = Profiler()
 
 class PadimTrainTests(unittest.TestCase):
     def setUp(self):
-        self.config = DatasetConfig("./config.yaml")
+        self.config = DatasetConfig("./config.json")
         self.args = PadimArgs()
         self.args.model_checkpoint_path = '.'
         self.args.backbone = 'mobilenet_v2'
@@ -37,6 +38,7 @@ class PadimTrainTests(unittest.TestCase):
         ])
 
     def test_padim_with_diagonalization(self):
+        profiler.start_profiling(True, "Padim with diagonalization, MVTec dataset")
         train_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.config.mvtec_root_path,
@@ -78,7 +80,7 @@ class PadimTrainTests(unittest.TestCase):
             train_dataset, batch_size=self.args.batch_size, pin_memory=True, drop_last=True
         )
 
-        trainer.train(train_dataloader, None)
+
 
         # evaluate the model
         test_dataloader = DataLoader(
@@ -87,7 +89,9 @@ class PadimTrainTests(unittest.TestCase):
 
         evaluator = Evaluator(test_dataloader=test_dataloader, device=self.args.device)
 
-        img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
+        with profiler.profile_step():
+            trainer.train(train_dataloader, None)
+            img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
 
 
         print("Evaluation performances:")
@@ -100,8 +104,10 @@ class PadimTrainTests(unittest.TestCase):
                 pxl_pr: {pxl_pr}
                 pxl_pro: {pxl_pro}
                 """)
+        profiler.end_profiling()
 
     def test_padim_without_diagonalization(self):
+        profiler.start_profiling(True, "Padim without diagonalization, MVTec dataset")
         train_dataset = MVTecDataset(
             TaskType.SEGMENTATION,
             self.config.mvtec_root_path,
@@ -143,16 +149,16 @@ class PadimTrainTests(unittest.TestCase):
             train_dataset, batch_size=self.args.batch_size, pin_memory=True, drop_last=True
         )
 
-        trainer.train(train_dataloader, None)
-
         # evaluate the model
         test_dataloader = DataLoader(
             test_dataset, batch_size=self.args.batch_size, shuffle=True, drop_last=True
         )
-
         evaluator = Evaluator(test_dataloader=test_dataloader, device=self.args.device)
+        with profiler.profile_step():
+            trainer.train(train_dataloader, None)
+            img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
 
-        img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = evaluator.evaluate(padim)
+        profiler.end_profiling()
 
 
         print("Evaluation performances:")

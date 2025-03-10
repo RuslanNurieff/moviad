@@ -1,3 +1,4 @@
+import profile
 import unittest
 from tokenize import group
 
@@ -30,7 +31,6 @@ class PadimBenchmark(unittest.TestCase):
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         self.transform = transforms.Compose([
-            transforms.Resize((256, 256)),
             transforms.PILToTensor(),
             transforms.Resize(
                 (256, 256),
@@ -40,6 +40,7 @@ class PadimBenchmark(unittest.TestCase):
             transforms.ConvertImageDtype(torch.float32),
         ])
         wandb.setup(wandb.Settings(program=__name__, program_relpath=__name__))
+
 
     def test_padim_mvtec(self):
         self.args.train_dataset = mvtec_train_dataset

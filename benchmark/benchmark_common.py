@@ -1,4 +1,5 @@
 from benchmark_config import DatasetRunConfig
+from moviad.datasets.builder import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.utilities.configurations import TaskType, Split
@@ -10,10 +11,9 @@ import wandb
 from torchvision.transforms import transforms, InterpolationMode
 import tempfile
 from main_scripts.main_padim import main_train_padim
-from main_scripts.main_patchcore import IMAGE_SIZE
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
-from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum, REAL_IAD_CATEGORIES_JSONS
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadClassEnum
 from moviad.datasets.visa.visa_dataset import VisaDataset
 from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
 from moviad.entrypoints.cfa import train_cfa
@@ -21,7 +21,7 @@ from moviad.entrypoints.padim import train_padim
 from moviad.utilities.configurations import TaskType, Split
 import shutil
 
-config = DatasetRunConfig('./config.yaml')
+config = DatasetConfig('./config.json')
 
 REAL_IAD_JSON_ROOT_PATH = config.realiad_json_root_path
 
