@@ -68,7 +68,7 @@ class STFPMArgs(Args):
     
 
 
-def train_stfpm(params: STFPMArgs, logger = None) -> None:
+def train_stfpm(params: STFPMArgs, logger = None,  evaluate=False) -> None:
     ad_model = "stfpm"
     print(f"Training with params: {params}")
     train_dataset, test_dataset = load_datasets(params.dataset_config, params.dataset_type, params.categories[0])
@@ -76,6 +76,8 @@ def train_stfpm(params: STFPMArgs, logger = None) -> None:
     params.test_dataset = test_dataset
     params.epochs = params.epochs * len(params.ad_layers)
     trained_models_filepaths = train_param_grid_search(params.to_dict(), logger)
+    if evaluate:
+        test_stfpm(params, logger)
 
     m = "\n".join(trained_models_filepaths)
     print(f"Trained models:{m}")

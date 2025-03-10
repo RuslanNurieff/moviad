@@ -343,10 +343,10 @@ class Padim(nn.Module):
         for i in range(H * W):
             mean = self.gauss_mean[:, i]
             diag_cov_i = self.diagonal_gauss_cov[:, i]
-            cov_matrix_i = np.array([[diag_cov_i[j] if i == j else 0 for j in range(C)] for i in range(C)])
-            inv_cov_matrix_i = np.linalg.inv(cov_matrix_i)
+            # cov_matrix_i = np.array([[diag_cov_i[j] if i == j else 0 for j in range(C)] for i in range(C)])
+            # inv_cov_matrix_i = np.linalg.inv(cov_matrix_i)
             dist = [
-                mahalanobis(sample[:, i], mean, inv_cov_matrix_i) for sample in embedding_vectors
+                mahalanobis_di(sample[:, i], mean, inv_cov_matrix_i) for sample in embedding_vectors
             ]
             dist_list.append(dist)
         dist_list = np.array(dist_list).transpose(1, 0).reshape(B, H, W)

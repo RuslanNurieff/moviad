@@ -63,15 +63,8 @@ class TrainerPatchCore():
 
             embeddings = torch.cat(embeddings, dim = 0)
 
-            #print(f"Embeddings Shape: {embeddings.shape}")
-
             torch.cuda.empty_cache()
 
-            # if self.patchore_model.apply_quantization:
-            #     self.patchore_model.product_quantizer.fit(embeddings)
-            #     embeddings = self.patchore_model.product_quantizer.encode(embeddings)
-
-            
             #apply coreset reduction
             print("Coreset Extraction:")
             sampler = KCenterGreedy(embeddings, self.patchore_model.feature_extractor.quantized, self.device, k=self.patchore_model.k)

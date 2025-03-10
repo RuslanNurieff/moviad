@@ -1,15 +1,17 @@
 import os.path
 import unittest
 import torch
-from memory_profiler import profile
+from torch.utils.data import Subset
 from torchvision.transforms import transforms
 
 from moviad.datasets.builder import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
+from moviad.datasets.realiad.realiad_dataset import RealIadDataset
+from moviad.datasets.realiad.realiad_dataset_configurations import RealIadCategory, RealIadClassEnum
 from moviad.entrypoints.patchcore import PatchCoreArgs, train_patchcore
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.patchcore.product_quantizer import ProductQuantizer
-from moviad.profiler.pytorch_profiler import torch_profile
+from moviad.profiler.pytorch_profiler import Profiler
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
@@ -31,26 +33,26 @@ class PatchCoreTrainTests(unittest.TestCase):
         self.args = PatchCoreArgs()
         self.config = DatasetConfig(CONFIG_PATH)
         self.args.contamination_ratio = 0.25
-        self.args.batch_size = 1
+        self.args.batch_size = 8
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args.img_input_size = (224, 224)
-        self.args.train_dataset = MVTecDataset(
+        self.args.train_dataset = RealIadDataset(RealIadClassEnum.PCB.value,
+            self.config.realiad_root_path,
+            self.config.realiad_json_root_path,
             TaskType.SEGMENTATION,
-            self.config.mvtec_root_path,
-            'pill',
             Split.TRAIN,
-            img_size=self.args.img_input_size,
+            self.args.img_input_size,
         )
-        self.args.test_dataset = MVTecDataset(
+        self.args.test_dataset = RealIadDataset(RealIadClassEnum.PCB.value,
+            self.config.realiad_root_path,
+            self.config.realiad_json_root_path,
             TaskType.SEGMENTATION,
-            self.config.mvtec_root_path,
-            'pill',
             Split.TEST,
-            img_size=self.args.img_input_size,
+            self.args.img_input_size,
         )
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
-        self.args.category = self.args.train_dataset.category
+        self.args.category = self.args.train_dataset.class_name
         self.contamination = 0
         self.args.backbone = "mobilenet_v2"
         self.args.ad_layers = ["features.4", "features.7", "features.10"]
@@ -72,6 +74,9 @@ class PatchCoreTrainTests(unittest.TestCase):
         self.assertGreater(distortion, 0)
 
     def test_patchcore_with_quantization(self):
+        profiler = Profiler()
+        profiler.start_profiling(True, "PatchCore with quantization, RealIAD dataset")
+
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
                                                    False, None)
         train_dataloader = torch.utils.data.DataLoader(self.args.train_dataset, batch_size=self.args.batch_size,
@@ -83,13 +88,13 @@ class PatchCoreTrainTests(unittest.TestCase):
 
         patchcore_model = PatchCore(self.args.device, input_size=self.args.img_input_size,
                                     feature_extractor=feature_extractor, apply_quantization=True)
-
         trainer = TrainerPatchCore(patchcore_model, train_dataloader, test_dataloader, self.args.device)
-        trainer.train()
+        with profiler.profile_step():
+            trainer.train()
 
+        profiler.end_profiling()
         patchcore_model.save_model("./")
 
-    @torch_profile
     def test_patchcore_with_quantization_and_load(self):
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
                                                    False, None)
@@ -117,7 +122,6 @@ class PatchCoreTrainTests(unittest.TestCase):
             pxl_pro: {pxl_pro}
             """)
 
-    @profile
     def test_patchcore_without_quantization(self):
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
                                                    False, None)
