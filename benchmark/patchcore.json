@@ -18,270 +18,36 @@
   "benchmark":
   [
     {
-      "model": "patchcore",
-      "datasets": [
-        {
-          "type": "mvtec",
-          "class": "bottle"
-        },
-        {
-          "type": "mvtec",
-          "class": "cable"
-        },
-        {
-          "type": "mvtec",
-          "class": "capsule"
-        },
-        {
-          "type": "mvtec",
-          "class": "carpet"
-        },
-        {
-          "type": "mvtec",
-          "class": "grid"
-        },
-        {
-          "type": "mvtec",
-          "class": "hazelnut"
-        },
-        {
-          "type": "mvtec",
-          "class": "leather"
-        },
-        {
-          "type": "mvtec",
-          "class": "metal_nut"
-        },
-        {
-          "type": "mvtec",
-          "class": "pill"
-        },
-        {
-          "type": "mvtec",
-          "class": "screw"
-        },
-        {
-          "type": "mvtec",
-          "class": "tile"
-        },
-        {
-          "type": "mvtec",
-          "class": "toothbrush"
-        },
-        {
-          "type": "mvtec",
-          "class": "transistor"
-        },
-        {
-          "type": "mvtec",
-          "class": "wood"
-        },
-        {
-          "type": "mvtec",
-          "class": "zipper"
-        },
-        {
-          "type": "visa",
-          "class": "candle"
-        },
-        {
-          "type": "visa",
-          "class": "capsules"
-        },
-        {
-          "type": "visa",
-          "class": "cashew"
-        },
-        {
-          "type": "visa",
-          "class": "chewinggum"
-        },
-        {
-          "type": "visa",
-          "class": "fryum"
-        },
-        {
-          "type": "visa",
-          "class": "macaroni1"
-        },
-        {
-          "type": "visa",
-          "class": "macaroni2"
-        },
-        {
-          "type": "visa",
-          "class": "pcb1"
-        },
-        {
-          "type": "visa",
-          "class": "pcb2"
-        },
-        {
-          "type": "visa",
-          "class": "pcb3"
-        },
-        {
-          "type": "visa",
-          "class": "pcb4"
-        },
-        {
-          "type": "visa",
-          "class": "pipe_fryum"
-        },
-        {
-          "type": "realiad",
-          "class": "audiojack"
-        },
-        {
-          "type": "realiad",
-          "class": "bottle_cap"
-        },
-        {
-          "type": "realiad",
-          "class": "button_battery"
-        },
-        {
-          "type": "realiad",
-          "class": "end_cap"
-        },
-        {
-          "type": "realiad",
-          "class": "eraser"
-        },
-        {
-          "type": "realiad",
-          "class": "fire_hood"
-        },
-        {
-          "type": "realiad",
-          "class": "mint"
-        },
-        {
-          "type": "realiad",
-          "class": "mounts"
-        },
-        {
-          "type": "realiad",
-          "class": "pcb"
-        },
-        {
-          "type": "realiad",
-          "class": "phone_battery"
-        },
-        {
-          "type": "realiad",
-          "class": "plastic_nut"
-        },
-        {
-          "type": "realiad",
-          "class": "plastic_plug"
-        },
-        {
-          "type": "realiad",
-          "class": "porcelain_doll"
-        },
-        {
-          "type": "realiad",
-          "class": "regulator"
-        },
-        {
-          "type": "realiad",
-          "class": "rolled_strip_base"
-        },
-        {
-          "type": "realiad",
-          "class": "sim_card_set"
-        },
-        {
-          "type": "realiad",
-          "class": "switch"
-        },
-        {
-          "type": "realiad",
-          "class": "tape"
-        },
-        {
-          "type": "realiad",
-          "class": "terminalblock"
-        },
-        {
-          "type": "realiad",
-          "class": "toothbrush"
-        },
-        {
-          "type": "realiad",
-          "class": "toy"
-        },
-        {
-          "type": "realiad",
-          "class": "toy_brick"
-        },
-        {
-          "type": "realiad",
-          "class": "transistor1"
-        },
-        {
-          "type": "realiad",
-          "class": "u_block"
-        },
-        {
-          "type": "realiad",
-          "class": "usb"
-        },
-        {
-          "type": "realiad",
-          "class": "usb_adaptor"
-        },
-        {
-          "type": "realiad",
-          "class": "vcpill"
-        },
-        {
-          "type": "realiad",
-          "class": "wooden_beads"
-        },
-        {
-          "type": "realiad",
-          "class": "woodstick"
-        },
-        {
-          "type": "realiad",
-          "class": "zipper"
-        }
-      ],
-      "backbones": [
-        {
-          "mobilenet_v2": [
-            "features.4",
-            "features.7",
-            "features.10"
-          ]
-        },
-        {
-          "micronet-m1": [
-            2,
-            4,
-            5
-          ]
-        },
-        {
-          "mcunet-in3": [
-            3,
-            6,
-            9
-          ]
-        },
-        {
-          "resnet18": [
-            "layer1",
-            "layer2",
-            "layer3"
-          ]
-        }
-      ],
-      "contamination": [
-        0
-      ]
+    "model": "patchcore_quantized",
+    "datasets": [
+      {"type": "visa", "class": "candle"},
+      {"type": "visa", "class": "capsules"},
+      {"type": "visa", "class": "cashew"},
+      {"type": "visa", "class": "chewinggum"},
+      {"type": "visa", "class": "fryum"},
+      {"type": "visa", "class": "macaroni1"},
+      {"type": "visa", "class": "macaroni2"},
+      {"type": "visa", "class": "pcb1"},
+      {"type": "visa", "class": "pcb2"},
+      {"type": "visa", "class": "pcb3"},
+      {"type": "visa", "class": "pcb4"},
+      {"type": "visa", "class": "pipe_fryum"}
+    ],
+    "backbones": [
+      {
+        "mobilenet_v2": ["features.4", "features.7", "features.10"]
+      },
+      {
+        "micronet-m1": [2, 4, 5]
+      },
+      {
+        "mcunet-in3": [3, 6, 9]
+      },
+      {
+        "resnet18": ["layer1", "layer2", "layer3"]
+      }
+    ],
+      "contamination" : [0]
     }
   ],
   "customizations": {
