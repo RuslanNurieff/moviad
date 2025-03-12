@@ -1,5 +1,5 @@
 from sklearn import random_projection
-from .kcenter_greedy import KCenterGreedy
+from .kcenter_greedy import CoresetExtractor
 
 class KNNSearcher:
     """
@@ -50,7 +50,7 @@ class KNNSearcher:
         if self.subsampling:
             print("Coreset subsampling")
             n_select = int(x.shape[0] * self.sampling_ratio)
-            selector = KCenterGreedy(x)
+            selector = CoresetExtractor(x)
             indices  = selector.coreset_selection(projector, n_select)
             centers = x[indices, :]
 
