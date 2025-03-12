@@ -1,11 +1,12 @@
 import wandb
 import torch
+from sklearn.cluster import MiniBatchKMeans
 
 from tqdm import tqdm
 import os
 
 from moviad.models.patchcore.patchcore import PatchCore
-from moviad.models.patchcore.kcenter_greedy import KCenterGreedy
+from moviad.models.patchcore.kcenter_greedy import CoresetExtractor
 from moviad.utilities.evaluator import Evaluator
 
 
@@ -27,6 +28,7 @@ class TrainerPatchCore():
         train_dataloader: torch.utils.data.DataLoader,
         test_dataloder: torch.utils.data.DataLoader,
         device: str,
+        coreset_extractor: CoresetExtractor = None,
         logger=None
     ):
         self.patchore_model = patchore_model
@@ -35,7 +37,8 @@ class TrainerPatchCore():
         self.device = device
         self.evaluator = Evaluator(self.test_dataloader, self.device)
         self.logger = logger
-    
+        self.coreset_extractor = coreset_extractor
+
     def train(self):
 
         """
@@ -63,14 +66,21 @@ class TrainerPatchCore():
 
             embeddings = torch.cat(embeddings, dim = 0)
 
+            #print(f"Embeddings Shape: {embeddings.shape}")
+
             torch.cuda.empty_cache()
+
+            # if self.patchore_model.apply_quantization:
+            #     self.patchore_model.product_quantizer.fit(embeddings)
+            #     embeddings = self.patchore_model.product_quantizer.encode(embeddings)
+
 
             #apply coreset reduction
             print("Coreset Extraction:")
-            sampler = KCenterGreedy(embeddings, self.patchore_model.feature_extractor.quantized, self.device, k=self.patchore_model.k)
-            sampled_idxs = sampler.get_coreset_idx_randomp(embeddings.cpu())
-            coreset = embeddings[sampled_idxs]
-            coreset = torch.tensor(coreset).to(self.device)
+            if self.coreset_extractor is None:
+                self.coreset_extractor = CoresetExtractor(False, self.device, k=self.patchore_model.k)
+
+            coreset = self.coreset_extractor.extract_coreset(embeddings)
 
             if self.patchore_model.apply_quantization:
                 assert self.patchore_model.product_quantizer is not None, "Product Quantizer not initialized"
@@ -106,10 +116,10 @@ class TrainerPatchCore():
                 pxl_pr: {pxl_pr} \n
                 pxl_pro: {pxl_pro} \n
             """)
-    
 
 
 
 
-        
-        
+
+
+
