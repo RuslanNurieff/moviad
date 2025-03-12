@@ -31,7 +31,8 @@ class CoresetExtractor:
         torch.Size([219, 1536])
     """
 
-    def __init__(self, quantized, device: torch.device, sampling_ratio: float = 0.1,k: int = 30000) -> None:
+    def __init__(self, quantized, device: torch.device, sampling_ratio: float = 0.1,
+                 k: int = 30000) -> None:
 
         self.quantized = quantized
         self.projector = SparseRandomProjection(n_components="auto", eps=0.90)
