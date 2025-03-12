@@ -5,13 +5,16 @@ Returns points that minimizes the maximum distance of any point to a center.
 """
 from __future__ import annotations
 
+from abc import abstractmethod
+
 import torch
-from torch.nn import functional as F 
+from torch.nn import functional as F
 from sklearn.random_projection import SparseRandomProjection
 import numpy as np
 from tqdm import tqdm
 
-class KCenterGreedy:
+
+class CoresetExtractor:
     """Implements k-center-greedy method.
 
     Args:
@@ -21,31 +24,28 @@ class KCenterGreedy:
     Example:
         >>> embedding.shape
         torch.Size([219520, 1536])
-        >>> sampler = KCenterGreedy(embedding=embedding)
+        >>> sampler = CoresetExtractor(embedding=embedding)
         >>> sampled_idxs = sampler.select_coreset_idxs()
         >>> coreset = embedding[sampled_idxs]
         >>> coreset.shape
         torch.Size([219, 1536])
     """
 
-    def __init__(self, embeddings: torch.Tensor, quantized, device: torch.device, sampling_ratio: float = 0.1, k: int = 30000) -> None:
-        
-        self.embeddings = embeddings
+    def __init__(self, quantized, device: torch.device, sampling_ratio: float = 0.1,
+                 k: int = 30000) -> None:
+
         self.quantized = quantized
-        self.coreset_size = int(embeddings.shape[0] * sampling_ratio)
         self.projector = SparseRandomProjection(n_components="auto", eps=0.90)
         self.k = k
         self.features: torch.Tensor
         self.min_distances: torch.Tensor = None
-        self.n_observations = self.embeddings.shape[0]
 
         self.device = device
-
 
     def reset_distances(self):
         self.min_distances = None
 
-    def update_distances(self, cluster_centers:list):
+    def update_distances(self, cluster_centers: list):
         """Update min distances given cluster centers.
 
         Args:
@@ -55,8 +55,8 @@ class KCenterGreedy:
         if cluster_centers:
             centers = self.features[cluster_centers]
 
-            distances = F.pairwise_distance(self.features, centers, p = 2).reshape(-1,1)
-            
+            distances = F.pairwise_distance(self.features, centers, p=2).reshape(-1, 1)
+
             if self.min_distances is None:
                 self.min_distances = distances
             else:
@@ -79,14 +79,15 @@ class KCenterGreedy:
 
         return idx
 
+    @abstractmethod
     def get_coreset_idx_randomp(
-        self,
-        z_lib, 
-        n : int = 1000,
-        k : int = 30000,
-        eps : float = 0.90,
-        float16 : bool = True,
-        force_cpu : bool = False,
+            self,
+            z_lib,
+            n: int = 1000,
+            k: int = 30000,
+            eps: float = 0.90,
+            float16: bool = True,
+            force_cpu: bool = False,
 
     ):
         """Returns n coreset idx for given z_lib.
@@ -111,18 +112,18 @@ class KCenterGreedy:
         print(f"   Fitting random projections. Start dim = {z_lib.shape}.")
         try:
             transformer = SparseRandomProjection(eps=eps)
-            
+
             if self.quantized:
                 z_lib = torch.int_repr(z_lib).to(torch.float64).cpu()
             z_lib = torch.tensor(transformer.fit_transform(z_lib))
             print(f"   DONE.                 Transformed dim = {z_lib.shape}.")
         except ValueError:
-            print( "   Error: could not project vectors. Please increase `eps`.")
+            print("   Error: could not project vectors. Please increase `eps`.")
 
         select_idx = 0
-        last_item = z_lib[select_idx:select_idx+1]
+        last_item = z_lib[select_idx:select_idx + 1]
         coreset_idx = [torch.tensor(select_idx)]
-        min_distances = torch.linalg.norm(z_lib-last_item, dim=1, keepdims=True)
+        min_distances = torch.linalg.norm(z_lib - last_item, dim=1, keepdims=True)
         # The line below is not faster than linalg.norm, although i'm keeping it in for
         # future reference.
         # min_distances = torch.sum(torch.pow(z_lib-last_item, 2), dim=1, keepdims=True)
@@ -136,19 +137,34 @@ class KCenterGreedy:
             z_lib = z_lib.to("cuda")
             min_distances = min_distances.to("cuda")
 
-        for _ in tqdm(range(k)):
-            distances = torch.linalg.norm(z_lib-last_item, dim=1, keepdims=True) # broadcasting step
+        for _ in tqdm(range(self.k)):
+            distances = torch.linalg.norm(z_lib - last_item, dim=1, keepdims=True)  # broadcasting step
             # distances = torch.sum(torch.pow(z_lib-last_item, 2), dim=1, keepdims=True) # broadcasting step
-            min_distances = torch.minimum(distances, min_distances) # iterative step
-            select_idx = torch.argmax(min_distances) # selection step
+            min_distances = torch.minimum(distances, min_distances)  # iterative step
+            select_idx = torch.argmax(min_distances)  # selection step
 
             # bookkeeping
-            last_item = z_lib[select_idx:select_idx+1]
+            last_item = z_lib[select_idx:select_idx + 1]
             min_distances[select_idx] = 0
             coreset_idx.append(select_idx.to("cpu"))
 
         return torch.stack(coreset_idx)
-    
+
+    @abstractmethod
+    def extract_coreset(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """Extract coreset from embeddings.
+
+        Args:
+            embeddings (torch.Tensor): Embeddings from a CNN.
+
+        Returns:
+            torch.Tensor: Coreset embeddings.
+        """
+
+        sampled_idxs = self.get_coreset_idx_randomp(embeddings.cpu())
+        coreset = embeddings[sampled_idxs]
+        return coreset
+
     def select_coreset_idxs(self, selected_idxs: list[int] | None = None) -> list[int]:
         """Greedily form a coreset to minimize the maximum distance of a cluster.
 
@@ -161,7 +177,7 @@ class KCenterGreedy:
 
         if selected_idxs is None:
             selected_idxs = []
-        
+
         print(f"Fitting random projections. Start dim = {self.embeddings.shape}.")
         if self.embeddings.ndim == 2:
             embedding_np = self.embeddings.cpu().numpy()
@@ -175,16 +191,16 @@ class KCenterGreedy:
         print(f"DONE: Final dim = {self.features.shape}")
 
         selected_coreset_idx: list[int] = []
-        idx = int(torch.randint(high = self.n_observations, size =(1,)).item())
+        idx = int(torch.randint(high=self.n_observations, size=(1,)).item())
 
         for _ in tqdm(range(self.k)):
-            self.update_distances(cluster_centers = [idx])
+            self.update_distances(cluster_centers=[idx])
             idx = self.get_new_idx()
 
             if idx in selected_idxs:
                 msg = "New indices should not be in selected indices."
                 raise ValueError(msg)
-            
+
             self.min_distances[idx] = 0
             selected_coreset_idx.append(idx)
 

@@ -237,6 +237,7 @@ class PatchCore(nn.Module):
 
         return patch_scores, locations
 
+
     def nearest_neighbors_quantized(self, embedding: Tensor, n_neighbors: int) -> tuple[Tensor, Tensor]:
         """
         Nearest neighbors using brute force method and euclidean norm.
@@ -252,7 +253,13 @@ class PatchCore(nn.Module):
         self.memory_bank = self.memory_bank.to(self.device)
 
         # Top 100 nearest neighbors
-        top_100_patch_scores, top_100_locations = self.product_quantizer.quantizer.search(embedding.cpu().numpy(), 100)
+        quantized_embedding = self.product_quantizer.encode(embedding)
+        quantized_embedding = quantized_embedding.to(self.device)
+        distances = PatchCore.euclidean_distance(quantized_embedding, self.memory_bank,
+                                                 quantized=self.feature_extractor.quantized)
+
+        # Top 100 nearest neighbors
+        top_100_patch_scores, top_100_locations = distances.topk(k=10, largest=False, dim=1)
 
         # Decode the top 100 neighbors from the memory bank
         top_100_neighbors = self.memory_bank[top_100_locations]
