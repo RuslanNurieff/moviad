@@ -11,9 +11,11 @@ from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadCategory, RealIadClassEnum
 from moviad.entrypoints.patchcore import PatchCoreArgs, train_patchcore
 from moviad.models.patchcore.kcenter_greedy import CoresetExtractor
-from moviad.models.patchcore.kmeans_coreset_extractor import KMeansCoresetExtractor
+from moviad.models.patchcore.kmeans_coreset_extractor import MiniBatchKMeansCoresetExtractor, KMeansCoresetExtractor
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.patchcore.product_quantizer import ProductQuantizer
+from moviad.profiler.pytorch_profiler import Profiler
+from moviad.trainers.batched_trainer_patchcore import BatchPatchCoreTrainer
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
 from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
@@ -35,7 +37,7 @@ class PatchCoreTrainTests(unittest.TestCase):
         self.args = PatchCoreArgs()
         self.config = DatasetConfig(CONFIG_PATH)
         self.args.contamination_ratio = 0.25
-        self.args.batch_size = 32
+        self.args.batch_size = 128
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args.img_input_size = (224, 224)
         self.args.train_dataset = MVTecDataset(
@@ -67,7 +69,7 @@ class PatchCoreTrainTests(unittest.TestCase):
         sampler = CoresetExtractor(False, self.args.device, k=k)
         coreset_kcenter = sampler.extract_coreset(embeddings.cpu())
 
-        kmeans = KMeansCoresetExtractor(False, self.args.device, k=k)
+        kmeans = MiniBatchKMeansCoresetExtractor(False, self.args.device, k=k)
         coreset_kmeans = kmeans.extract_coreset(embeddings)
 
         self.assertEqual(coreset_kcenter.shape[0], k + 1)
@@ -134,6 +136,7 @@ class PatchCoreTrainTests(unittest.TestCase):
             """)
 
     def test_patchcore_without_quantization(self):
+        profiler = Profiler()
         feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
                                                    False, None)
         train_dataloader = torch.utils.data.DataLoader(self.args.train_dataset, batch_size=self.args.batch_size,
@@ -144,12 +147,36 @@ class PatchCoreTrainTests(unittest.TestCase):
                                                       shuffle=True,
                                                       drop_last=True)
 
-        coreset_extractor = KMeansCoresetExtractor(False, self.args.device, k=30000)
+        coreset_extractor = MiniBatchKMeansCoresetExtractor(False, self.args.device, k=1000)
         patchcore_model = PatchCore(self.args.device, input_size=self.args.img_input_size,
-                                    feature_extractor=feature_extractor, apply_quantization=False, k=30000)
-        trainer = TrainerPatchCore(patchcore_model, train_dataloader, test_dataloader, self.args.device, coreset_extractor)
-        trainer.train()
+                                    feature_extractor=feature_extractor, apply_quantization=False, k=1000)
+        trainer = TrainerPatchCore(patchcore_model, train_dataloader, test_dataloader, self.args.device)
+        profiler.start_profiling(title="PatchCore Training | K-Center greedy (k=1000)")
+        with profiler.profile_step():
+            trainer.train()
+        profiler.end_profiling()
+        model_memory_size = os.path.getsize("./patchcore_model.pt")
+        print(f"Model memory size: {model_memory_size}")
 
+    def test_patchcore_streaming(self):
+        profiler = Profiler()
+        feature_extractor = CustomFeatureExtractor(self.args.backbone, self.args.ad_layers, self.args.device, True,
+                                                   False, None)
+        train_dataloader = torch.utils.data.DataLoader(self.args.train_dataset, batch_size=self.args.batch_size,
+                                                       shuffle=True,
+                                                       drop_last=True)
+
+        test_dataloader = torch.utils.data.DataLoader(self.args.test_dataset, batch_size=self.args.batch_size,
+                                                      shuffle=True,
+                                                      drop_last=True)
+
+        patchcore_model = PatchCore(self.args.device, input_size=self.args.img_input_size,
+                                    feature_extractor=feature_extractor, apply_quantization=False, k=1000)
+        trainer = BatchPatchCoreTrainer(patchcore_model, train_dataloader, test_dataloader, self.args.device)
+        profiler.start_profiling(title="PatchCore Training | Mini Batch K-means (k=1000)")
+        with profiler.profile_step():
+            trainer.train()
+        profiler.end_profiling()
         model_memory_size = os.path.getsize("./patchcore_model.pt")
         print(f"Model memory size: {model_memory_size}")
 
