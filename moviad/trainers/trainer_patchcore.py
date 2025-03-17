@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 import wandb
 import torch
 from sklearn.cluster import MiniBatchKMeans
@@ -39,6 +41,7 @@ class TrainerPatchCore():
         self.logger = logger
         self.coreset_extractor = coreset_extractor
 
+    @abstractmethod
     def train(self):
 
         """
