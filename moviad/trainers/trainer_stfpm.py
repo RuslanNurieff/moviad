@@ -105,7 +105,8 @@ def train_model(
             t_feat, s_feat = model(batch_img.to(device))
 
             loss = loss_fn(t_feat[0], s_feat[0])
-            logger.log({"train_loss": loss.item()})
+            if logger is not None:
+                logger.log({"train_loss": loss.item()})
             for i in range(1, len(t_feat)):
                 t_feat[i] = F.normalize(t_feat[i], dim=1)
                 s_feat[i] = F.normalize(s_feat[i], dim=1)
@@ -118,13 +119,15 @@ def train_model(
             optimizer.step()
 
         mean_loss /= len(train_loader)
-        logger.log({"avg_batch_loss": mean_loss})
+        if logger is not None:
+            logger.log({"avg_batch_loss": mean_loss})
 
         # evaluate the model
         with torch.no_grad():
             model.eval()
             val_loss = torch.zeros(1, device=device)
-            logger.log({"val_loss": mean_loss})
+            if logger is not None:
+                logger.log({"val_loss": mean_loss})
             for batch_imgs in val_loader:
                 # NOTE: train and val losses are computed in different ways, maybe we can make them the same?
                 anomaly_maps, _ = model(batch_imgs.to(device))
@@ -173,7 +176,7 @@ def train_model(
     return logs_df, save_path
 
 
-def train_param_grid_step(train_dataset: IadDataset,
+def train_param_grid_step(dataset_path,
                           config,
                           batch_size,
                           backbone_model_name,
@@ -183,8 +186,8 @@ def train_param_grid_step(train_dataset: IadDataset,
                           early_stopping=False,
                           checkpoint_dir="./snapshots",
                           normalize_dataset=True,
-                          logger=None,
-                          test_dataset=None
+                          test_dataset = False,
+                          logger=None
                           ):
     category = config["category"]
     contamination_ratio = config.get("contamination_ratio", 0.0)
@@ -203,12 +206,12 @@ def train_param_grid_step(train_dataset: IadDataset,
         torch.manual_seed(seed)
 
     start_time = time.time()
-    train_dataset.set_category(category)
+    train_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, Split.TRAIN)
     train_dataset.load_dataset()
-    if contamination_ratio > 0:
+    if contamination_ratio and contamination_ratio > 0:
         if test_dataset is None:
             raise ValueError("test_dataset must be provided if contamination_ratio > 0")
-        test_dataset.set_category(category)
+        test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, Split.TEST)
         test_dataset.load_dataset()
         train_dataset.contaminate(test_dataset, contamination_ratio)
         contamination = train_dataset.compute_contamination_ratio()
@@ -317,18 +320,18 @@ def train_param_grid_search(params=default_params, logger=None):
                         "contamination_ratio": params["contamination_ratio"],
                     }
                     log, snapshot_path = train_param_grid_step(
-                        params["train_dataset"],
+                        params["dataset_path"],
                         config,
                         params["batch_size"],
-                        params["backbone"],
+                        params["backbone_model_name"],
                         params["device"],
                         params["img_input_size"],
                         params["img_output_size"],
                         params["early_stopping"],
                         params["checkpoint_dir"],
                         params["normalize_dataset"],
+                        params["test_dataset"],
                         logger,
-                        params["test_dataset"]
                     )
                     trained_models_filepaths.append(snapshot_path)
                     if params["log_dirpath"] is not None:

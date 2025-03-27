@@ -31,11 +31,14 @@ def main(args):
     batch_size = args.batch_size
     model_name = args.model_name
     ad_layers = args.ad_layers
+    categories = args.categories
     boot_layer = args.boot_layer
     seeds = args.seeds
     epochs = args.epochs
     disable_dataset_norm: bool = args.disable_dataset_norm
     feature_maps_dir = args.feature_maps_dir
+    contamination_ratio = args.contamination_ratio
+    test_dataset = args.test_dataset
 
     device = torch.device(args.device)
     input_sizes = {
@@ -50,12 +53,13 @@ def main(args):
         input_sizes[model_name] = args.input_size
 
     # TRAIN AND SAVE BEST ###############################################
-    if args.data:
+    if args.train:
         ad_model = "stfpm"
 
         ad_layers = [ad_layers]
 
         params = {
+            "dataset_path": dataset_path,
             "categories": categories,
             "ad_layers": ad_layers,
             "epochs": [epochs] * len(ad_layers),
@@ -71,8 +75,9 @@ def main(args):
             ),
             "checkpoint_dir": checkpoint_dir,
             "normalize_dataset": bool(not disable_dataset_norm),
-            "dataset_path": dataset_path,
             "log_dirpath": args.log_dirpath,
+            "contamination_ratio": contamination_ratio,
+            "test_dataset": test_dataset
         }
 
         # input(f"Training with params: {params}\n\nPress Enter to continue...")
@@ -220,6 +225,7 @@ def main(args):
                 gt_mask_size=output_size,
                 normalize=not disable_dataset_norm,
             )
+            test_dataset.load_dataset()
             # test_dataloader = DataLoader(
             #     test_dataset, batch_size=batch_size, shuffle=True
             # )
@@ -363,6 +369,17 @@ if __name__ == "__main__":
         default=None,
         help="Directory to save the feature maps.",
     )
+
+    parser.add_argument(
+        "--contamination_ratio",
+        type=float,
+        default=None,
+        help="Percentage of contamination to introduce in the training set.",
+    )
+
+    parser.add_argument(
+    "--test_dataset", action="store_true", help="Use test dataset for contamination."
+)
 
     args = parser.parse_args()
 

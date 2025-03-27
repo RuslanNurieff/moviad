@@ -89,9 +89,9 @@ class Padim(nn.Module):
         self.backbone_model_name = backbone_model_name
         self.layers_idxs = layers_idxs
 
-        # self.layers_idxs = idx_to_layer_name(
-        #     backbone_model_name, layers_idxs
-        # )  # feature extraction layers
+        self.layers_idxs = idx_to_layer_name(
+            backbone_model_name, layers_idxs
+         )  # feature extraction layers
 
         self.load_backbone()
         # dimensionality reduction: random projection
