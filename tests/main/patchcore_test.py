@@ -1,15 +1,17 @@
 import os.path
 import unittest
+
+import numpy as np
 import torch
 from sklearn.cluster import MiniBatchKMeans
 from torch.utils.data import Subset
-from torchvision.transforms import transforms
+from torchvision.transforms import transforms, InterpolationMode
 
 from moviad.datasets.builder import DatasetConfig
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadCategory, RealIadClassEnum
-from moviad.entrypoints.patchcore import PatchCoreArgs, train_patchcore
+from moviad.entrypoints.patchcore import PatchCoreArgs
 from moviad.models.patchcore.kcenter_greedy import CoresetExtractor
 from moviad.models.patchcore.kmeans_coreset_extractor import MiniBatchKMeansCoresetExtractor, KMeansCoresetExtractor
 from moviad.models.patchcore.patchcore import PatchCore
@@ -21,6 +23,7 @@ from moviad.utilities.configurations import TaskType, Split
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.utilities.evaluator import Evaluator
 from moviad.utilities.metrics import compute_product_quantization_efficiency
+from tests.logger.wandb_logger import WandbLogger
 
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -29,6 +32,41 @@ transform = transforms.Compose([
 ])
 
 CONFIG_PATH = 'config.json'
+config = DatasetConfig('./config.json')
+real_iad_train_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
+                                        config.realiad_root_path,
+                                        config.realiad_json_root_path,
+                                        task=TaskType.SEGMENTATION,
+                                        split=Split.TRAIN,
+                                        image_size=(224, 224),
+                                        transform=transforms.Compose([
+                                            transforms.Resize((224, 224)),
+                                            transforms.PILToTensor(),
+                                            transforms.Resize(
+                                                (224, 224),
+                                                antialias=True,
+                                                interpolation=InterpolationMode.NEAREST,
+                                            ),
+                                            transforms.ConvertImageDtype(torch.float32)
+                                        ]))
+
+real_iad_test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
+                                       config.realiad_root_path,
+                                       config.realiad_json_root_path,
+                                       task=TaskType.SEGMENTATION,
+                                       split=Split.TEST,
+                                       image_size=(224, 224),
+                                       gt_mask_size=(224, 224),
+                                       transform=transforms.Compose([
+                                           transforms.Resize((224, 224)),
+                                           transforms.PILToTensor(),
+                                           transforms.Resize(
+                                               (224, 224),
+                                               antialias=True,
+                                               interpolation=InterpolationMode.NEAREST,
+                                           ),
+                                           transforms.ConvertImageDtype(torch.float32)
+                                       ]))
 
 
 class PatchCoreTrainTests(unittest.TestCase):
@@ -40,20 +78,8 @@ class PatchCoreTrainTests(unittest.TestCase):
         self.args.batch_size = 128
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args.img_input_size = (224, 224)
-        self.args.train_dataset = MVTecDataset(
-            TaskType.SEGMENTATION,
-            self.config.mvtec_root_path,
-            'pill',
-            Split.TRAIN,
-            img_size=self.args.img_input_size,
-        )
-        self.args.test_dataset = MVTecDataset(
-            TaskType.SEGMENTATION,
-            self.config.mvtec_root_path,
-            'pill',
-            Split.TEST,
-            img_size=self.args.img_input_size,
-        )
+        self.args.train_dataset = real_iad_train_dataset
+        self.args.test_dataset = real_iad_test_dataset
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.category
@@ -147,11 +173,11 @@ class PatchCoreTrainTests(unittest.TestCase):
                                                       shuffle=True,
                                                       drop_last=True)
 
-        coreset_extractor = MiniBatchKMeansCoresetExtractor(False, self.args.device, k=1000)
+        coreset_extractor = MiniBatchKMeansCoresetExtractor(False, self.args.device, k=100)
         patchcore_model = PatchCore(self.args.device, input_size=self.args.img_input_size,
-                                    feature_extractor=feature_extractor, apply_quantization=False, k=1000)
+                                    feature_extractor=feature_extractor, apply_quantization=False, k=20000)
         trainer = TrainerPatchCore(patchcore_model, train_dataloader, test_dataloader, self.args.device)
-        profiler.start_profiling(title="PatchCore Training | K-Center greedy (k=1000)")
+        profiler.start_profiling(title="PatchCore Training | K-Center greedy (k=100)")
         with profiler.profile_step():
             trainer.train()
         profiler.end_profiling()
@@ -171,7 +197,7 @@ class PatchCoreTrainTests(unittest.TestCase):
                                                       drop_last=True)
 
         patchcore_model = PatchCore(self.args.device, input_size=self.args.img_input_size,
-                                    feature_extractor=feature_extractor, apply_quantization=False, k=1000)
+                                    feature_extractor=feature_extractor, apply_quantization=False, k=30000)
         trainer = BatchPatchCoreTrainer(patchcore_model, train_dataloader, test_dataloader, self.args.device)
         profiler.start_profiling(title="PatchCore Training | Mini Batch K-means (k=1000)")
         with profiler.profile_step():
