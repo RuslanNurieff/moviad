@@ -1,7 +1,6 @@
 import torch
 from tqdm import tqdm
 from typing_extensions import override
-
 from moviad.models.patchcore.kmeans_coreset_extractor import MiniBatchKMeansCoresetExtractor
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.trainers.trainer_patchcore import TrainerPatchCore
@@ -9,12 +8,13 @@ from moviad.trainers.trainer_patchcore import TrainerPatchCore
 
 class BatchPatchCoreTrainer(TrainerPatchCore):
     def __init__(self, patchore_model: PatchCore, train_dataloader: torch.utils.data.DataLoader,
-                 test_dataloder: torch.utils.data.DataLoader, device: str):
-        super().__init__(patchore_model, train_dataloader, test_dataloder, device)
+                 test_dataloder: torch.utils.data.DataLoader, device: str, logger=None, cluster_batch_size=16):
+        super().__init__(patchore_model, train_dataloader, test_dataloder, device, logger=logger)
+        self.cluster_batch_size = cluster_batch_size
 
     @override
     def train(self):
-        self.coreset_extractor = MiniBatchKMeansCoresetExtractor(False, self.device, k=self.patchore_model.k)
+        self.coreset_extractor = MiniBatchKMeansCoresetExtractor(False, self.device, k=self.patchore_model.k, batch_size=self.cluster_batch_size)
         with torch.no_grad():
 
             if self.logger is not None:
@@ -22,7 +22,6 @@ class BatchPatchCoreTrainer(TrainerPatchCore):
 
             print("Embedding Extraction:")
             for batch in tqdm(iter(self.train_dataloader)):
-
                 if isinstance(batch, tuple):
                     embedding = self.patchore_model(batch[0].to(self.device))
                 else:
@@ -53,7 +52,7 @@ class BatchPatchCoreTrainer(TrainerPatchCore):
                     "f1_pxl": f1_pxl,
                     "img_pr": img_pr,
                     "pxl_pr": pxl_pr,
-                    "pxl_pro": pxl_pro
+                    "pxl_pro": pxl_pro,
                 })
 
             print("End training performances:")

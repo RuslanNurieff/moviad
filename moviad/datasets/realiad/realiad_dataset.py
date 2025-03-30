@@ -38,7 +38,7 @@ class RealIadDataset(IadDataset):
         self.json_root_path = json_root_path
         self.img_root_dir = img_root_dir
         self.transform = transform
-        self.class_name = class_name
+        self.category = class_name
         self.data: RealIadData = None
         self.task = task
         self.split = split
@@ -102,7 +102,7 @@ class RealIadDataset(IadDataset):
         return dataset_1, dataset_2
 
     def load_dataset(self) -> None:
-        self.data = RealIadData.from_json(self.json_root_path, self.class_name, self.split)
+        self.data = RealIadData.from_json(self.json_root_path, self.category, self.split)
         if self.data is None:
             raise ValueError("Dataset is None")
 
