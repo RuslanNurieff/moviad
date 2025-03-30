@@ -13,10 +13,11 @@ from moviad.models.stfpm.stfpm import Stfpm
 from moviad.trainers.trainer_stfpm import train_param_grid_search
 from moviad.utilities.evaluator import Evaluator, append_results
 
+
 @dataclass
 class STFPMArgs(Args):
     train_dataset: IadDataset = None
-    test_dataset: IadDataset  = None
+    test_dataset: IadDataset = None
     epochs = [10]
     categories: list[str] = None
     backbone: str = None
@@ -33,7 +34,13 @@ class STFPMArgs(Args):
     student_bootstrap_layer = [0]
     seeds = [3]
     results_dirpath: str = './results'
-    input_sizes: dict = None
+    input_sizes: dict = field(default_factory=lambda: {
+        "mcunet-in3": (176, 176),
+        "mobilenet_v2": (224, 224),
+        "phinet_1.2_0.5_6_downsampling": (224, 224),
+        "wide_resnet50_2": (224, 224),
+        "micronet-m1": (224, 224),
+    })
     ad_model: str = None
     trained_models_filepaths: Optional[List[str]] = None
 
@@ -65,11 +72,9 @@ class STFPMArgs(Args):
             "trained_models_filepaths": self.trained_models_filepaths,
             "ad_model": self.ad_model
         }
-    
 
 
-def train_stfpm(params: STFPMArgs, logger = None,  evaluate=False) -> None:
-    ad_model = "stfpm"
+def train_stfpm(params: STFPMArgs, logger=None, evaluate=False) -> None:
     print(f"Training with params: {params}")
     train_dataset, test_dataset = load_datasets(params.dataset_config, params.dataset_type, params.categories[0])
     params.train_dataset = train_dataset
@@ -78,11 +83,11 @@ def train_stfpm(params: STFPMArgs, logger = None,  evaluate=False) -> None:
     trained_models_filepaths = train_param_grid_search(params.to_dict(), logger)
     if evaluate:
         test_stfpm(params, logger)
-
     m = "\n".join(trained_models_filepaths)
     print(f"Trained models:{m}")
 
-def test_stfpm(params: STFPMArgs, logger = None) -> None:
+
+def test_stfpm(params: STFPMArgs, logger=None) -> None:
     if params.trained_models_filepaths is None:
         params.trained_models_filepaths = glob(
             os.path.join(params.checkpoint_dir, "**/*.pth.tar"), recursive=True
@@ -110,7 +115,6 @@ def test_stfpm(params: STFPMArgs, logger = None) -> None:
         print(f"backbone model name: {backbone_model_name}")
         print(f"img_input_size: {img_input_size}")
         print(f"Category: {category}")
-
 
         test_dataloader = DataLoader(
             params.test_dataset, batch_size=params.batch_size, shuffle=True
@@ -155,6 +159,7 @@ def test_stfpm(params: STFPMArgs, logger = None) -> None:
         )
 
         torch.cuda.empty_cache()
+
 
 def visualize_stfpm(params: STFPMArgs):
     if params.trained_models_filepaths is None:
@@ -208,7 +213,6 @@ def visualize_stfpm(params: STFPMArgs):
         print(f"backbone model name: {backbone_model_name}")
         print(f"img_input_size: {img_input_size}")
         print(f"Category: {category}")
-
 
         # test_dataloader = DataLoader(
         #     test_dataset, batch_size=batch_size, shuffle=True
