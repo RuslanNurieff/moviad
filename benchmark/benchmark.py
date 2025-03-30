@@ -1,4 +1,5 @@
 import argparse
+import traceback
 
 import torch
 from PIL.PngImagePlugin import is_cid
@@ -206,7 +207,7 @@ def is_cuda_device_available(device_name):
 
 def main(benchmark_args: BenchmarkArgs):
     # Parse the config file into DatasetConfig and BenchmarkConfig
-    dataset_config = DatasetConfig(benchmark_args.config_file)
+    dataset_config = DatasetConfig(benchmark_args.config_file, image_size=(224, 224))
     benchmark_config = BenchmarkConfig(benchmark_args.config_file)
     csv_file = "benchmark_checklist.csv" if benchmark_args.checklist_path is None else benchmark_args.checklist_path
 
@@ -328,6 +329,8 @@ def main(benchmark_args: BenchmarkArgs):
                 continue
             except Exception as e:
                 print(f"An error occurred: {e}")
+                traceback_str = traceback.format_exc()
+                print(f"Stack trace:\n{traceback_str}")
                 state = "Failed"
                 error = str(e)
                 update_dataframe(df, run, state=state, error=error)
@@ -358,8 +361,10 @@ if __name__ == '__main__':
 
     parser.add_argument("--device",
                         type=str,
+                        required=True,
                         default=None,
-                        help="Device to run the benchmark")
+                        help="Device to run the benchmark",
+                        choices=["cpu"] + [f"cuda:{i}" for i in range(torch.cuda.device_count())] + ["mps"],)
 
     args = parser.parse_args()
     benchmark_args = BenchmarkArgs.from_parser(args)

@@ -9,13 +9,14 @@ from moviad.utilities.configurations import TaskType, Split
 
 
 class DatasetConfig:
-    def __init__(self, config_file):
+    def __init__(self, config_file, image_size=(256, 256)):
         self.config = self.load_config(config_file)
         self.realiad_root_path = self.convert_path(self.config['datasets']['realiad']['root_path'])
         self.realiad_json_root_path = self.convert_path(self.config['datasets']['realiad']['json_root_path'])
         self.visa_root_path = self.convert_path(self.config['datasets']['visa']['root_path'])
         self.visa_csv_path = self.convert_path(self.config['datasets']['visa']['csv_path'])
         self.mvtec_root_path = self.convert_path(self.config['datasets']['mvtec']['root_path'])
+        self.image_size = image_size
 
     def load_config(self, config_file):
         assert os.path.exists(config_file), f"Config file {config_file} does not exist"
@@ -42,6 +43,7 @@ class DatasetType(EnumType):
 class DatasetFactory:
     def __init__(self, config: DatasetConfig):
         self.config = config
+        self.image_size = (256, 256)
 
     def build(self, dataset_type: DatasetType, split: Split, class_name: str, image_size=(256, 256)) -> IadDataset:
         if dataset_type == DatasetType.MVTec:
