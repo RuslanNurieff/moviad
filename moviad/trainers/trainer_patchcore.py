@@ -1,14 +1,12 @@
+from abc import abstractmethod
 import wandb
 import torch
 from sklearn.cluster import MiniBatchKMeans
-
 from tqdm import tqdm
 import os
-
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.patchcore.kcenter_greedy import CoresetExtractor
 from moviad.utilities.evaluator import Evaluator
-
 
 class TrainerPatchCore():
 
@@ -39,6 +37,7 @@ class TrainerPatchCore():
         self.logger = logger
         self.coreset_extractor = coreset_extractor
 
+    @abstractmethod
     def train(self):
 
         """
@@ -53,29 +52,15 @@ class TrainerPatchCore():
                 self.logger.watch(self.patchore_model)
             print("Embedding Extraction:")
             for batch in tqdm(iter(self.train_dataloader)):
-
                 if isinstance(batch, tuple):
                     embedding = self.patchore_model(batch[0].to(self.device))
                 else:
                     embedding = self.patchore_model(batch.to(self.device))
-
-                #print(f"Embedding Shape: {embedding.shape}")
-
-
                 embeddings.append(embedding)
 
             embeddings = torch.cat(embeddings, dim = 0)
-
-            #print(f"Embeddings Shape: {embeddings.shape}")
-
             torch.cuda.empty_cache()
 
-            # if self.patchore_model.apply_quantization:
-            #     self.patchore_model.product_quantizer.fit(embeddings)
-            #     embeddings = self.patchore_model.product_quantizer.encode(embeddings)
-
-
-            #apply coreset reduction
             print("Coreset Extraction:")
             if self.coreset_extractor is None:
                 self.coreset_extractor = CoresetExtractor(False, self.device, k=self.patchore_model.k)
@@ -91,20 +76,7 @@ class TrainerPatchCore():
 
             self.patchore_model.memory_bank = coreset
 
-            img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.patchore_model)
-
-            if self.logger is not None:
-                self.logger.log({
-                    "train_loss" : 0,
-                    "val_loss" : 0,
-                    "img_roc": img_roc,
-                    "pxl_roc": pxl_roc,
-                    "f1_img": f1_img,
-                    "f1_pxl": f1_pxl,
-                    "img_pr": img_pr,
-                    "pxl_pr": pxl_pr,
-                    "pxl_pro": pxl_pro
-                })
+            img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.patchore_model, logger=self.logger)
 
             print("End training performances:")
             print(f"""
