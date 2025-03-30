@@ -224,17 +224,17 @@ def train_param_grid_step(train_dataset: IadDataset,
         train_dataset, batch_size=batch_size, pin_memory=True, shuffle=True
     )
 
-    if logger is not None:
-        logger.config.update(
-            {
-                "category": category,
-                "ad_layers": ad_layers,
-                "epochs": epochs,
-                "seed": seed,
-                "student_bootstrap_layer": student_bootstrap_layer
-            },
-            allow_val_change=True
-        )
+    # if logger is not None:
+    #     logger.config.update(
+    #         {
+    #             "category": category,
+    #             "ad_layers": ad_layers,
+    #             "epochs": epochs,
+    #             "seed": seed,
+    #             "student_bootstrap_layer": student_bootstrap_layer
+    #         },
+    #         allow_val_change=True
+    #     )
 
     model = Stfpm(
         input_size=img_input_size,
