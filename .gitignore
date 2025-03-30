@@ -193,3 +193,7 @@ cython_debug/
 /tests/main/pill_mobilenet_v2_lay[8, 9]_share0/original_imgs.pkl
 /tests/main/pill_mobilenet_v2_lay[8, 9]_share0/student_maps.pkl
 /tests/main/pill_mobilenet_v2_lay[8, 9]_share0/teacher_maps.pkl
+benchmark/config.json
+benchmark/padim.json
+benchmark/patchcore.json
+benchmark/stfpm.json
