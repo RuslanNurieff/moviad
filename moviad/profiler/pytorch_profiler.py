@@ -1,13 +1,11 @@
 import contextlib
 from datetime import datetime
-import os
 import numpy as np
 import torch
 import cProfile
 import pstats
 import io
 from memory_profiler import memory_usage
-from thop import profile
 
 class Profiler:
     def __init__(self):
