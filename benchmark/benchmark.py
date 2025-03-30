@@ -31,6 +31,7 @@ def update_dataframe(df, run, state="Running", error=""):
     if not existing_row.empty:
         df.loc[existing_row.index, "Runs"] += 1
         df.loc[existing_row.index, "State"] = state
+        df.loc[existing_row.index, "Error"] = error
     else:
         new_row = pd.DataFrame([{
             "Method": run.model,
@@ -155,7 +156,7 @@ def benchmark_stfpm(args: STFPMArgs, df, csv_file):
     logger = wandb.init(project="moviad_benchmark", group="stfpm")
     logger.config.update({
         "ad_model": "stfpm",
-        "dataset": DatasetType.MVTec,
+        "dataset": args.dataset_type,
         "category": args.categories,
         "backbone": args.backbone,
         "ad_layers": args.ad_layers,
@@ -166,7 +167,7 @@ def benchmark_stfpm(args: STFPMArgs, df, csv_file):
     if args.contamination_ratio > 0:
         logger.tags += tuple(["contaminated"])
     logger.name = f"stfpm_{args.dataset_type}_{args.backbone}"
-    train_stfpm(args, logger)
+    train_stfpm(args, logger, evaluate=True)
     logger.finish()
 
 
