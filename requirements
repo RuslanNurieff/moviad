@@ -10,4 +10,4 @@ scikit-image
 micromind
 tqdm
 wandb
-faiss==1.9.0.post1
+faiss-cpu==1.9.0.post1
