@@ -42,7 +42,7 @@ class RunConfig:
     def __init__(self, model, dataset_type, class_name, backbone, ad_layers, contamination):
         self.model = model
         self.dataset_type = dataset_type
-        self.class_name = class_name
+        self.category = class_name
         self.backbone = backbone
         self.ad_layers = ad_layers
         self.contamination = contamination

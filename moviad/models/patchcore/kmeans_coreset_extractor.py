@@ -8,15 +8,12 @@ from moviad.models.patchcore.kcenter_greedy import CoresetExtractor
 
 class MiniBatchKMeansCoresetExtractor(CoresetExtractor):
     def __init__(self, quantized, device: torch.device, sampling_ratio: float = 0.1,
-                 k: int = 30000) -> None:
+                 k: int = 30000, batch_size: int = 16, n_init: int = 100) -> None:
         super().__init__(quantized, device, sampling_ratio, k)
-        self.batch_size = 128  # TODO: Needs an optimal value
+        self.batch_size = batch_size
+        self.n_init = 100
         self.kmeans_extractor = MiniBatchKMeans(n_clusters=self.k, random_state=42, batch_size=self.batch_size,
-                                                n_init="auto")
-
-    def get_coreset_idx_randomp(self, z_lib, n: int = 1000, k: int = 30000, eps: float = 0.90, float16: bool = True,
-                                force_cpu: bool = False):
-        super().get_coreset_idx_randomp(z_lib, n, k, eps, float16, force_cpu)
+                                                n_init=self.n_init, compute_labels=False)
 
 
     def partial_fit(self, embeddings_batch: torch.tensor) -> None:

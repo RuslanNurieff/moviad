@@ -122,11 +122,16 @@ def test_stfpm(params: STFPMArgs, logger=None) -> None:
         print(f"Length test dataset: {len(params.test_dataset)}")
 
         # load the model snapshot
+
         model = Stfpm(input_size=params.img_input_size,
                       output_size=params.img_output_size)
         model.load_state_dict(
             torch.load(checkpoint_path, map_location=params.device), strict=False
         )
+
+        if logger is not None:
+            logger.watch(model)
+
         model.to(params.device)
 
         # evaluate the model

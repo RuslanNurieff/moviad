@@ -7,7 +7,7 @@ from moviad.utilities.configurations import TaskType, Split
 class IadDataset(Dataset):
     task : TaskType
     split: Split
-    class_name: str
+    category: str
     dataset_path: str
     contamination_ratio: float
 
@@ -17,7 +17,7 @@ class IadDataset(Dataset):
 
     @abstractmethod
     def set_category(self, category: str):
-        self.class_name = category
+        self.category = category
 
     @abstractmethod
     def compute_contamination_ratio(self) -> float:
