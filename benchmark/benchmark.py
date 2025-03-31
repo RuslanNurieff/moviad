@@ -1,11 +1,13 @@
 import argparse
 import traceback
+from abc import abstractmethod
 
 import torch
 import wandb
 import pandas as pd
 import os
 
+from benchmark_logger import CsvLogger
 from benchmark_model_mappings import MODEL_MAPPINGS
 from benchmark_config import DatasetRunConfig, BenchmarkConfig
 from benchmark_args import BenchmarkArgs
@@ -19,7 +21,6 @@ from moviad.entrypoints.stfpm import STFPMArgs, train_stfpm
 seed = 42
 columns = ["Method", "Dataset type", "Class name", "Backbone", "AD layers",
            "Contamination", "Runs", "State", "Error"]
-
 
 def update_dataframe(df, run, state="Running", error=""):
     existing_row = df[(df["Method"] == run.model) &
@@ -165,7 +166,9 @@ def is_cuda_device_available(device_name):
 def main(benchmark_args: BenchmarkArgs):
     dataset_config = DatasetConfig(benchmark_args.config_file, image_size=(224, 224))
     benchmark_config = BenchmarkConfig(benchmark_args.config_file)
+
     csv_file = "benchmark_checklist.csv" if benchmark_args.checklist_path is None else benchmark_args.checklist_path
+    benchmark_logger = CsvLogger(csv_file)
 
     if not is_cuda_device_available(benchmark_args.device):
         raise RuntimeError(f"CUDA device '{benchmark_args.device}' is not available. "
@@ -174,19 +177,19 @@ def main(benchmark_args: BenchmarkArgs):
     device = torch.device(benchmark_args.device)
     print("DEVICE: ", device)
 
-    if os.path.exists(csv_file):
-        df = pd.read_csv(csv_file)
-    else:
-        df = pd.DataFrame(columns=columns)
-
     if benchmark_args.mode == "generate-checklist":
+        if os.path.exists(csv_file):
+            df = pd.read_csv(csv_file)
+        else:
+            df = pd.DataFrame(columns=columns)
+
         df = generate_full_checklist(df, benchmark_config)
         save_dataframe(df, benchmark_args.checklist_path)
         return
 
     for benchmark_run in benchmark_config.get_benchmark_runs():
         for run in benchmark_run.get_runs():
-            if run_exists(df, run):
+            if benchmark_logger.run_exists(run):
                 print(
                     f"Run already exists: {run.model}, {run.dataset_type}, {run.class_name}, {run.backbone}, {run.ad_layers}, {run.contamination}")
                 continue
@@ -201,7 +204,7 @@ def main(benchmark_args: BenchmarkArgs):
 
             state = "Running"
             error = ""
-            df = update_dataframe(df, run, state=state, error=error)
+            benchmark_logger.update(run, state=state, error=error)
 
             try:
                 # Get the mapping for the model
@@ -231,8 +234,8 @@ def main(benchmark_args: BenchmarkArgs):
                 state = "Failed"
                 error = str(e)
 
-            update_dataframe(df, run, state=state, error=error)
-            save_dataframe(df, csv_file)
+            benchmark_logger.update(run, state=state, error=error)
+            benchmark_logger.save()
 
 
 if __name__ == '__main__':

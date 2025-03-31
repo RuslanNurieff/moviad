@@ -28,6 +28,17 @@ class DatasetRunConfig:
 
 
 class RunConfig:
+    """
+    Configuration for a single run of the benchmark.
+    """
+
+    model: str
+    dataset_type: str
+    class_name: str
+    backbone: str
+    ad_layers: list
+    contamination: float
+
     def __init__(self, model, dataset_type, class_name, backbone, ad_layers, contamination):
         self.model = model
         self.dataset_type = dataset_type
