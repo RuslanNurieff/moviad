@@ -101,7 +101,6 @@ def train_model(
 
         # train the model
         for batch_img in train_loader:
-
             t_feat, s_feat = model(batch_img.to(device))
 
             loss = loss_fn(t_feat[0], s_feat[0])

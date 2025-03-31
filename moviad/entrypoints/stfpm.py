@@ -74,7 +74,7 @@ class STFPMArgs(Args):
         }
 
 
-def train_stfpm(params: STFPMArgs, logger=None, evaluate=False) -> None:
+def train_stfpm(params: STFPMArgs, logger=None, evaluate=True) -> None:
     print(f"Training with params: {params}")
     train_dataset, test_dataset = load_datasets(params.dataset_config, params.dataset_type, params.categories[0])
     params.train_dataset = train_dataset
