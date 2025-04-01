@@ -23,6 +23,33 @@ class BenchmarkLogger:
     def run_exists(self, run):
         pass
 
+class WandbLogger(BenchmarkLogger):
+    """
+    Concrete implementation of BenchmarkLogger that logs benchmark runs to Weights & Biases (wandb).
+    """
+
+    def __init__(self):
+        import wandb
+        self.wandb = wandb
+
+    def update(self, run: RunConfig, state: str, error: str = "") -> None:
+        self.wandb.log({
+            "model": run.model,
+            "dataset_type": run.dataset_type,
+            "class_name": run.class_name,
+            "backbone": run.backbone,
+            "ad_layers": str(run.ad_layers),
+            "contamination": run.contamination,
+            "state": state,
+            "error": error
+        })
+
+    def save(self):
+        pass
+
+    def run_exists(self, run: RunConfig):
+        return False
+
 
 class CsvLogger(BenchmarkLogger):
     """

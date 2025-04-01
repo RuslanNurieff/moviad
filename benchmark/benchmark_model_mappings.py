@@ -60,6 +60,21 @@ MODEL_MAPPINGS = {
             device=device
         )
     },
+    'batchedcore': {
+        'train_method': train_patchcore,
+        'arg_constructor': lambda dataset_config, run, seed, device: PatchCoreArgs(
+            dataset_config=dataset_config,
+            dataset_type=run.dataset_type,
+            category=run.class_name,
+            img_input_size=(224, 224),
+            backbone=run.backbone,
+            ad_layers=run.ad_layers,
+            contamination_ratio=run.contamination,
+            seed=seed,
+            batched=True,
+            device=device
+        )
+    },
     'stfpm': {
         'train_method': train_stfpm,
         'arg_constructor': lambda dataset_config, run, seed, device: STFPMArgs(
