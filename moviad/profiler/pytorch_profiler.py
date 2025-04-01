@@ -1,11 +1,15 @@
 import contextlib
 from datetime import datetime
+import os
+from logging import Logger
+
 import numpy as np
 import torch
 import cProfile
 import pstats
 import io
 from memory_profiler import memory_usage
+
 
 class Profiler:
     def __init__(self):
@@ -105,6 +109,7 @@ class Profiler:
             stats_str,
             f"{'=' * 50}\n"
         ])
+
 
         # Save detailed profile output
         with open(log_file, 'a') as f:

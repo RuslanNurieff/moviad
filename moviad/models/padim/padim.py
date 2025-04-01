@@ -3,6 +3,7 @@ from random import sample
 from typing import Mapping, Union, Any, Dict, List, Tuple
 
 import numpy as np
+from memory_profiler import profile
 from scipy.ndimage import gaussian_filter
 from scipy.spatial.distance import mahalanobis
 
@@ -11,7 +12,6 @@ from torch import nn
 from torch.nn import functional as F
 
 from ...utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
-from ...utilities.distances import malahanobis_distance_diagonal
 
 # Dict: "backbone_model_name" -> {(layer_idxs): (true_dimension, random_projection_dimension)}
 EMBEDDING_SIZES = {
@@ -307,6 +307,7 @@ class Padim(nn.Module):
         state_dict = {k: v for k, v in state_dict.items() if k not in self.HYPERPARAMS}
         return super().load_state_dict(state_dict, strict=strict)
 
+
     def compute_distances(self, embedding_vectors: torch.Tensor):
         """
         Compute the Mahalanobis distances between the embedding vectors and the
@@ -329,6 +330,7 @@ class Padim(nn.Module):
         dist_list = np.array(dist_list).transpose(1, 0).reshape(B, H, W)
         return torch.tensor(dist_list)
 
+
     def compute_distances_diagonal(self, embedding_vectors: torch.Tensor):
         """
         Compute the Mahalanobis distances between the embedding vectors and the
@@ -344,8 +346,6 @@ class Padim(nn.Module):
         for i in range(H * W):
             mean = self.gauss_mean[:, i]
             diag_cov_i = self.diagonal_gauss_cov[:, i]
-            # cov_matrix_i = np.array([[diag_cov_i[j] if i == j else 0 for j in range(C)] for i in range(C)])
-            # inv_cov_matrix_i = np.linalg.inv(cov_matrix_i)
             dist = [
                 malahanobis_distance_diagonal(sample[:, i], mean, diag_cov_i) for sample in embedding_vectors
             ]

@@ -2,14 +2,14 @@ import argparse
 import traceback
 
 import torch
-from PIL.PngImagePlugin import is_cid
-from sympy import false
 
 import wandb
 import pandas as pd
 import os
 
 from benchmark_config import DatasetRunConfig, BenchmarkConfig
+from moviad.benchmark_config import RunConfig
+from moviad.common.args import Args
 from moviad.datasets.builder import DatasetType, DatasetConfig
 from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
 from moviad.entrypoints.cfa import CFAArguments, train_cfa
@@ -24,7 +24,7 @@ columns = ["Method", "Dataset type", "Class name", "Backbone", "AD layers",
 def update_dataframe(df, run, state="Running", error=""):
     existing_row = df[(df["Method"] == run.model) &
                       (df["Dataset type"] == run.dataset_type) &
-                      (df["Class name"] == run.class_name) &
+                      (df["Class name"] == run.category) &
                       (df["Backbone"] == run.backbone) &
                       (df["AD layers"] == str(run.ad_layers)) &
                       (df["Contamination"] == run.contamination)]
@@ -37,7 +37,7 @@ def update_dataframe(df, run, state="Running", error=""):
         new_row = pd.DataFrame([{
             "Method": run.model,
             "Dataset type": run.dataset_type,
-            "Class name": run.class_name,
+            "Class name": run.category,
             "Backbone": run.backbone,
             "AD layers": run.ad_layers,
             "Contamination": run.contamination,
@@ -60,7 +60,7 @@ def generate_full_checklist(df, benchmark_config: BenchmarkConfig):
             run_data = {
                 "Method": run.model,
                 "Dataset type": run.dataset_type,
-                "Class name": run.class_name,
+                "Class name": run.category,
                 "Backbone": run.backbone,
                 "AD layers": str(run.ad_layers),
                 "Contamination": float(run.contamination),
@@ -84,16 +84,15 @@ def save_dataframe(df, csv_file):
     df.to_csv(csv_file, index=False)
 
 
-def run_exists(df, run):
+def run_exists(df, run: RunConfig):
     existing_row = df[(df["Method"] == run.model) &
                       (df["Dataset type"] == run.dataset_type) &
-                      (df["Class name"] == run.class_name) &
+                      (df["Class name"] == run.category) &
                       (df["Backbone"] == run.backbone) &
                       (df["AD layers"] == str(run.ad_layers)) &
                       (df["Contamination"] == run.contamination) &
                       (df["State"] == "Completed")]
     return not existing_row.empty
-
 
 def benchmark_cfa(args: CFAArguments, df, csv_file):
     logger = wandb.init(project="moviad_benchmark", group="cfa")
@@ -135,10 +134,11 @@ def benchmark_padim(args: PadimArgs, df, csv_file):
 
 def benchmark_patchcore(args: PatchCoreArgs, df, csv_file):
     group_name = "patchcore_quantized" if args.quantized else "patchcore"
-    logger = wandb.init(project="moviad_benchmark", group="patchcore")
+    logger = wandb.init(project="moviad_profiling", group="patchcore_batched")
     logger.config.update({
         "ad_model": group_name,
         "dataset": args.dataset_type,
+        "batch_size": args.batch_size,
         "category": args.category,
         "backbone": args.backbone,
         "ad_layers": args.ad_layers,
@@ -233,11 +233,11 @@ def main(benchmark_args: BenchmarkArgs):
         for run in benchmark_run.get_runs():
             if run_exists(df, run):
                 print(
-                    f"Run already exists: {run.model}, {run.dataset_type}, {run.class_name}, {run.backbone}, {run.ad_layers}, {run.contamination}")
+                    f"Run already exists: {run.model}, {run.dataset_type}, {run.category}, {run.backbone}, {run.ad_layers}, {run.contamination}")
                 continue
             print(f"Method: {run.model}")
             print(f"Dataset type: {run.dataset_type}")
-            print(f"Class name: {run.class_name}")
+            print(f"Class name: {run.category}")
             print(f"Backbone: {run.backbone}")
             print(f"AD layers: {run.ad_layers}")
             print(f"Contamination: {run.contamination}")
@@ -250,7 +250,7 @@ def main(benchmark_args: BenchmarkArgs):
                     args = CFAArguments(
                         dataset_config=dataset_config,
                         dataset_type=run.dataset_type,
-                        category=run.class_name,
+                        category=run.category,
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
@@ -265,7 +265,7 @@ def main(benchmark_args: BenchmarkArgs):
                     args = PadimArgs(
                         dataset_config=dataset_config,
                         dataset_type=run.dataset_type,
-                        category=run.class_name,
+                        category=run.category,
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
@@ -278,7 +278,8 @@ def main(benchmark_args: BenchmarkArgs):
                     args = PatchCoreArgs(
                         dataset_config=dataset_config,
                         dataset_type=run.dataset_type,
-                        category=run.class_name,
+                        batch_size=64,
+                        category=run.category,
                         img_input_size=(256, 256),
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
@@ -286,14 +287,13 @@ def main(benchmark_args: BenchmarkArgs):
                         seed=seed,
                         device=device
                     )
-
                     benchmark_patchcore(args, df, csv_file)
                     state = "Completed"
                 elif run.model == 'patchcore_quantized':
                     args = PatchCoreArgs(
                         dataset_config=dataset_config,
                         dataset_type=run.dataset_type,
-                        category=run.class_name,
+                        category=run.category,
                         img_input_size=(256, 256),
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
@@ -309,7 +309,7 @@ def main(benchmark_args: BenchmarkArgs):
                     args = STFPMArgs(
                         dataset_config=dataset_config,
                         dataset_type=run.dataset_type,
-                        categories=[run.class_name],
+                        categories=[run.category],
                         backbone=run.backbone,
                         ad_layers=run.ad_layers,
                         contamination_ratio=run.contamination,
