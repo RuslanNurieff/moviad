@@ -8,7 +8,7 @@ import pandas as pd
 import os
 
 from benchmark_config import DatasetRunConfig, BenchmarkConfig
-from moviad.benchmark_config import RunConfig
+from benchmark_config import RunConfig
 from moviad.common.args import Args
 from moviad.datasets.builder import DatasetType, DatasetConfig
 from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
