@@ -132,17 +132,17 @@ def benchmark(model_type, args, train_method):
     logger.finish()
 
 
-def benchmark_cfa(args: CFAArguments, df, csv_file):
-    benchmark("cfa", args, df, csv_file, train_cfa)
+def benchmark_cfa(args: CFAArguments):
+    benchmark("cfa", args, train_cfa)
 
-def benchmark_padim(args: PadimArgs, df, csv_file):
-    benchmark("padim", args, df, csv_file, train_padim)
+def benchmark_padim(args: PadimArgs):
+    benchmark("padim", args, train_padim)
 
-def benchmark_patchcore(args: PatchCoreArgs, df, csv_file):
-    benchmark("patchcore", args, df, csv_file, train_patchcore)
+def benchmark_patchcore(args: PatchCoreArgs):
+    benchmark("patchcore", args, train_patchcore)
 
-def benchmark_stfpm(args: STFPMArgs, df, csv_file):
-    benchmark("stfpm", args, df, csv_file, train_stfpm)
+def benchmark_stfpm(args: STFPMArgs):
+    benchmark("stfpm", args, train_stfpm)
 
 
 def is_cuda_device_available(device_name):
@@ -248,7 +248,7 @@ if __name__ == '__main__':
                         help="Script execution mode: generate-checklist or run",
                         default="run")
 
-    parser.add_argument("--checklist-path",  # Changed to optional argument with --
+    parser.add_argument("--checklist-path",
                         type=str,
                         default=None,
                         help="Path of the checklist file")
