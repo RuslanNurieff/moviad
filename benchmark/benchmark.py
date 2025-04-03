@@ -2,14 +2,13 @@ import argparse
 import traceback
 
 import torch
-
 import wandb
 import pandas as pd
 import os
 
+from benchmark_model_mappings import MODEL_MAPPINGS
 from benchmark_config import DatasetRunConfig, BenchmarkConfig
-from benchmark_config import RunConfig
-from moviad.common.args import Args
+from benchmark_args import BenchmarkArgs
 from moviad.datasets.builder import DatasetType, DatasetConfig
 from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
 from moviad.entrypoints.cfa import CFAArguments, train_cfa
@@ -19,12 +18,13 @@ from moviad.entrypoints.stfpm import STFPMArgs, train_stfpm
 
 seed = 42
 columns = ["Method", "Dataset type", "Class name", "Backbone", "AD layers",
-               "Contamination", "Runs", "State", "Error"]
+           "Contamination", "Runs", "State", "Error"]
+
 
 def update_dataframe(df, run, state="Running", error=""):
     existing_row = df[(df["Method"] == run.model) &
                       (df["Dataset type"] == run.dataset_type) &
-                      (df["Class name"] == run.category) &
+                      (df["Class name"] == run.class_name) &
                       (df["Backbone"] == run.backbone) &
                       (df["AD layers"] == str(run.ad_layers)) &
                       (df["Contamination"] == run.contamination)]
@@ -37,7 +37,7 @@ def update_dataframe(df, run, state="Running", error=""):
         new_row = pd.DataFrame([{
             "Method": run.model,
             "Dataset type": run.dataset_type,
-            "Class name": run.category,
+            "Class name": run.class_name,
             "Backbone": run.backbone,
             "AD layers": run.ad_layers,
             "Contamination": run.contamination,
@@ -54,13 +54,13 @@ def generate_full_checklist(df, benchmark_config: BenchmarkConfig):
     new_runs = []
     for benchmark_run in benchmark_config.get_benchmark_runs():
         for run in benchmark_run.get_runs():
-            if run_exists(df, run): # Skip if run already exists
+            if run_exists(df, run):  # Skip if run already exists
                 continue
 
             run_data = {
                 "Method": run.model,
                 "Dataset type": run.dataset_type,
-                "Class name": run.category,
+                "Class name": run.class_name,
                 "Backbone": run.backbone,
                 "AD layers": str(run.ad_layers),
                 "Contamination": float(run.contamination),
@@ -84,109 +84,65 @@ def save_dataframe(df, csv_file):
     df.to_csv(csv_file, index=False)
 
 
-def run_exists(df, run: RunConfig):
+def run_exists(df, run):
     existing_row = df[(df["Method"] == run.model) &
                       (df["Dataset type"] == run.dataset_type) &
-                      (df["Class name"] == run.category) &
+                      (df["Class name"] == run.class_name) &
                       (df["Backbone"] == run.backbone) &
                       (df["AD layers"] == str(run.ad_layers)) &
                       (df["Contamination"] == run.contamination) &
                       (df["State"] == "Completed")]
     return not existing_row.empty
 
-def benchmark_cfa(args: CFAArguments, df, csv_file):
-    logger = wandb.init(project="moviad_benchmark", group="cfa")
-    logger.config.update({
-        "ad_model": "cfa",
-        "dataset": args.dataset_type,
-        "category": args.category,
-        "backbone": args.backbone,
-        "ad_layers": args.ad_layers,
-        "seed": args.seed,
-        "contamination_ratio": args.contamination_ratio
-    }, allow_val_change=True)
-    logger.tags = ["cfa", args.dataset_type, args.backbone]
-    if args.contamination_ratio > 0:
-        logger.tags += tuple(["contaminated"])
-    logger.name = f"cfa_{args.dataset_type}_{args.backbone}"
-    train_cfa(args, logger)
-    logger.finish()
 
+def benchmark(model_type, args, train_method):
+    """Generic benchmark function that accepts any model type and training method."""
+    # Handle special group name for patchcore
+    group_name = model_type
+    if model_type == "patchcore" and hasattr(args, "quantized") and args.quantized:
+        group_name = "patchcore_quantized"
 
-def benchmark_padim(args: PadimArgs, df, csv_file):
-    logger = wandb.init(project="moviad_benchmark", group="padim")
-    logger.config.update({
-        "ad_model": "padim",
-        "dataset": args.dataset_type,
-        "category": args.category,
-        "backbone": args.backbone,
-        "ad_layers": args.ad_layers,
-        "seed": args.seed,
-        "contamination_ratio": args.contamination_ratio
-    }, allow_val_change=True)
-    logger.tags = ["padim", args.dataset_type, args.backbone]
-    if args.contamination_ratio > 0:
-        logger.tags += tuple(["contaminated"])
-    logger.name = f"padim_{args.dataset_type}_{args.backbone}"
-    train_padim(args, logger)
-    logger.finish()
+    logger = wandb.init(project="moviad_benchmark", group=model_type)
 
+    # Get the right category attribute (some use category, others use categories)
+    category = args.categories if hasattr(args, "categories") else args.category
 
-def benchmark_patchcore(args: PatchCoreArgs, df, csv_file):
-    group_name = "patchcore_quantized" if args.quantized else "patchcore"
-    logger = wandb.init(project="moviad_profiling", group="patchcore_batched")
     logger.config.update({
         "ad_model": group_name,
         "dataset": args.dataset_type,
-        "batch_size": args.batch_size,
-        "category": args.category,
+        "category": category,
         "backbone": args.backbone,
         "ad_layers": args.ad_layers,
         "seed": args.seed,
         "contamination_ratio": args.contamination_ratio
     }, allow_val_change=True)
+
     logger.tags = [group_name, args.dataset_type, args.backbone]
     if args.contamination_ratio > 0:
         logger.tags += tuple(["contaminated"])
+
     logger.name = f"{group_name}_{args.dataset_type}_{args.backbone}"
-    train_patchcore(args, logger)
+
+    # Call the appropriate training method
+    if model_type == "stfpm":
+        train_method(args, logger, evaluate=True)
+    else:
+        train_method(args, logger)
+
     logger.finish()
 
+
+def benchmark_cfa(args: CFAArguments, df, csv_file):
+    benchmark("cfa", args, df, csv_file, train_cfa)
+
+def benchmark_padim(args: PadimArgs, df, csv_file):
+    benchmark("padim", args, df, csv_file, train_padim)
+
+def benchmark_patchcore(args: PatchCoreArgs, df, csv_file):
+    benchmark("patchcore", args, df, csv_file, train_patchcore)
 
 def benchmark_stfpm(args: STFPMArgs, df, csv_file):
-    logger = wandb.init(project="moviad_benchmark", group="stfpm")
-    logger.config.update({
-        "ad_model": "stfpm",
-        "dataset": args.dataset_type,
-        "category": args.categories,
-        "backbone": args.backbone,
-        "ad_layers": args.ad_layers,
-        "seed": args.seed,
-        "contamination_ratio": args.contamination_ratio
-    }, allow_val_change=True)
-    logger.tags = ["stfpm", args.dataset_type, args.backbone]
-    if args.contamination_ratio > 0:
-        logger.tags += tuple(["contaminated"])
-    logger.name = f"stfpm_{args.dataset_type}_{args.backbone}"
-    train_stfpm(args, logger, evaluate=True)
-    logger.finish()
-
-
-class BenchmarkArgs:
-    def __init__(self, config_file, mode,checklist_path, device):
-        self.config_file = config_file
-        self.mode = mode
-        self.checklist_path = checklist_path
-        self.device = device
-
-    @classmethod
-    def from_parser(cls, args):
-        return cls(
-            config_file=args.config_file,
-            mode=args.mode,
-            checklist_path=args.checklist_path,
-            device=args.device
-        )
+    benchmark("stfpm", args, df, csv_file, train_stfpm)
 
 
 def is_cuda_device_available(device_name):
@@ -205,8 +161,8 @@ def is_cuda_device_available(device_name):
 
     return False
 
+
 def main(benchmark_args: BenchmarkArgs):
-    # Parse the config file into DatasetConfig and BenchmarkConfig
     dataset_config = DatasetConfig(benchmark_args.config_file, image_size=(224, 224))
     benchmark_config = BenchmarkConfig(benchmark_args.config_file)
     csv_file = "benchmark_checklist.csv" if benchmark_args.checklist_path is None else benchmark_args.checklist_path
@@ -216,7 +172,6 @@ def main(benchmark_args: BenchmarkArgs):
                            f"Available devices: CPU and CUDA devices 0 to {torch.cuda.device_count() - 1 if torch.cuda.is_available() else 'none'}")
 
     device = torch.device(benchmark_args.device)
-
     print("DEVICE: ", device)
 
     if os.path.exists(csv_file):
@@ -226,116 +181,55 @@ def main(benchmark_args: BenchmarkArgs):
 
     if benchmark_args.mode == "generate-checklist":
         df = generate_full_checklist(df, benchmark_config)
-        save_dataframe(df, "benchmark_checklist.csv")
+        save_dataframe(df, benchmark_args.checklist_path)
         return
 
     for benchmark_run in benchmark_config.get_benchmark_runs():
         for run in benchmark_run.get_runs():
             if run_exists(df, run):
                 print(
-                    f"Run already exists: {run.model}, {run.dataset_type}, {run.category}, {run.backbone}, {run.ad_layers}, {run.contamination}")
+                    f"Run already exists: {run.model}, {run.dataset_type}, {run.class_name}, {run.backbone}, {run.ad_layers}, {run.contamination}")
                 continue
+
             print(f"Method: {run.model}")
             print(f"Dataset type: {run.dataset_type}")
-            print(f"Class name: {run.category}")
+            print(f"Class name: {run.class_name}")
             print(f"Backbone: {run.backbone}")
             print(f"AD layers: {run.ad_layers}")
             print(f"Contamination: {run.contamination}")
             print("-------------------------------------")
+
             state = "Running"
             error = ""
             df = update_dataframe(df, run, state=state, error=error)
+
             try:
-                if run.model == 'cfa':
-                    args = CFAArguments(
-                        dataset_config=dataset_config,
-                        dataset_type=run.dataset_type,
-                        category=run.category,
-                        backbone=run.backbone,
-                        ad_layers=run.ad_layers,
-                        contamination_ratio=run.contamination,
-                        seed=seed,
-                        device=device
-                    )
+                # Get the mapping for the model
+                model_key = run.model
+                if model_key not in MODEL_MAPPINGS:
+                    print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
+                    continue
 
-                    benchmark_cfa(args, df, csv_file)
-                    state = "Completed"
+                mapping = MODEL_MAPPINGS[model_key]
 
-                elif run.model == 'padim':
-                    args = PadimArgs(
-                        dataset_config=dataset_config,
-                        dataset_type=run.dataset_type,
-                        category=run.category,
-                        backbone=run.backbone,
-                        ad_layers=run.ad_layers,
-                        contamination_ratio=run.contamination,
-                        seed=seed,
-                        device=device
-                    )
-                    benchmark_padim(args, df, csv_file)
-                    state = "Completed"
-                elif run.model == 'patchcore':
-                    args = PatchCoreArgs(
-                        dataset_config=dataset_config,
-                        dataset_type=run.dataset_type,
-                        batch_size=64,
-                        category=run.category,
-                        img_input_size=(256, 256),
-                        backbone=run.backbone,
-                        ad_layers=run.ad_layers,
-                        contamination_ratio=run.contamination,
-                        seed=seed,
-                        device=device
-                    )
-                    benchmark_patchcore(args, df, csv_file)
-                    state = "Completed"
-                elif run.model == 'patchcore_quantized':
-                    args = PatchCoreArgs(
-                        dataset_config=dataset_config,
-                        dataset_type=run.dataset_type,
-                        category=run.category,
-                        img_input_size=(256, 256),
-                        backbone=run.backbone,
-                        ad_layers=run.ad_layers,
-                        contamination_ratio=run.contamination,
-                        seed=seed,
-                        quantized=True,
-                        device=device
-                    )
-                    benchmark_patchcore(args, df, csv_file)
-                    state = "Completed"
+                # Create arguments using the constructor from the mapping
+                args = mapping['arg_constructor'](dataset_config, run, seed, device)
 
-                elif run.model == 'stfpm':
-                    args = STFPMArgs(
-                        dataset_config=dataset_config,
-                        dataset_type=run.dataset_type,
-                        categories=[run.category],
-                        backbone=run.backbone,
-                        ad_layers=run.ad_layers,
-                        contamination_ratio=run.contamination,
-                        seed=seed,
-                        device=device
-                    )
+                # Run the benchmark using the training method from the mapping
+                benchmark(model_key, args, mapping['train_method'])
 
-                    benchmark_stfpm(args, df, csv_file)
-                    state = "Completed"
+                state = "Completed"
 
             except DatasetTooSmallToContaminateException:
                 print(f"Dataset {run.dataset_type} is too small to contaminate. Skipping...")
                 state = "Failed"
                 error = "Dataset too small to contaminate"
-                update_dataframe(df, run, state=state, error=error)
-                save_dataframe(df, csv_file)
-                continue
             except Exception as e:
                 print(f"An error occurred: {e}")
                 traceback_str = traceback.format_exc()
                 print(f"Stack trace:\n{traceback_str}")
                 state = "Failed"
                 error = str(e)
-                update_dataframe(df, run, state=state, error=error)
-                save_dataframe(df, csv_file)
-                continue
 
             update_dataframe(df, run, state=state, error=error)
             save_dataframe(df, csv_file)
@@ -364,7 +258,7 @@ if __name__ == '__main__':
                         required=True,
                         default=None,
                         help="Device to run the benchmark",
-                        choices=["cpu"] + [f"cuda:{i}" for i in range(torch.cuda.device_count())] + ["mps"],)
+                        choices=["cpu"] + [f"cuda:{i}" for i in range(torch.cuda.device_count())] + ["mps"], )
 
     args = parser.parse_args()
     benchmark_args = BenchmarkArgs.from_parser(args)
