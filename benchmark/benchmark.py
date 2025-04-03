@@ -7,7 +7,7 @@ import pandas as pd
 import os
 
 from benchmark_model_mappings import MODEL_MAPPINGS
-from benchmark_config import DatasetRunConfig, BenchmarkConfig
+from benchmark_config import DatasetRunConfig, BenchmarkConfig, RunConfig
 from benchmark_args import BenchmarkArgs
 from moviad.datasets.builder import DatasetType, DatasetConfig
 from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
@@ -21,10 +21,10 @@ columns = ["Method", "Dataset type", "Class name", "Backbone", "AD layers",
            "Contamination", "Runs", "State", "Error"]
 
 
-def update_dataframe(df, run, state="Running", error=""):
+def update_dataframe(df, run: RunConfig, state="Running", error=""):
     existing_row = df[(df["Method"] == run.model) &
                       (df["Dataset type"] == run.dataset_type) &
-                      (df["Class name"] == run.class_name) &
+                      (df["Class name"] == run.category) &
                       (df["Backbone"] == run.backbone) &
                       (df["AD layers"] == str(run.ad_layers)) &
                       (df["Contamination"] == run.contamination)]
@@ -37,7 +37,7 @@ def update_dataframe(df, run, state="Running", error=""):
         new_row = pd.DataFrame([{
             "Method": run.model,
             "Dataset type": run.dataset_type,
-            "Class name": run.class_name,
+            "Class name": run.category,
             "Backbone": run.backbone,
             "AD layers": run.ad_layers,
             "Contamination": run.contamination,
@@ -87,7 +87,7 @@ def save_dataframe(df, csv_file):
 def run_exists(df, run):
     existing_row = df[(df["Method"] == run.model) &
                       (df["Dataset type"] == run.dataset_type) &
-                      (df["Class name"] == run.class_name) &
+                      (df["Class name"] == run.category) &
                       (df["Backbone"] == run.backbone) &
                       (df["AD layers"] == str(run.ad_layers)) &
                       (df["Contamination"] == run.contamination) &
@@ -188,12 +188,12 @@ def main(benchmark_args: BenchmarkArgs):
         for run in benchmark_run.get_runs():
             if run_exists(df, run):
                 print(
-                    f"Run already exists: {run.model}, {run.dataset_type}, {run.class_name}, {run.backbone}, {run.ad_layers}, {run.contamination}")
+                    f"Run already exists: {run.model}, {run.dataset_type}, {run.category}, {run.backbone}, {run.ad_layers}, {run.contamination}")
                 continue
 
             print(f"Method: {run.model}")
             print(f"Dataset type: {run.dataset_type}")
-            print(f"Class name: {run.class_name}")
+            print(f"Class name: {run.category}")
             print(f"Backbone: {run.backbone}")
             print(f"AD layers: {run.ad_layers}")
             print(f"Contamination: {run.contamination}")

@@ -36,7 +36,7 @@ MODEL_MAPPINGS = {
         'arg_constructor': lambda dataset_config, run, seed, device: PatchCoreArgs(
             dataset_config=dataset_config,
             dataset_type=run.dataset_type,
-            category=run.class_name,
+            category=run.category,
             img_input_size=(224, 224),
             backbone=run.backbone,
             ad_layers=run.ad_layers,
@@ -50,7 +50,7 @@ MODEL_MAPPINGS = {
         'arg_constructor': lambda dataset_config, run, seed, device: PatchCoreArgs(
             dataset_config=dataset_config,
             dataset_type=run.dataset_type,
-            category=run.class_name,
+            category=run.category,
             img_input_size=(224, 224),
             backbone=run.backbone,
             ad_layers=run.ad_layers,
@@ -65,7 +65,7 @@ MODEL_MAPPINGS = {
         'arg_constructor': lambda dataset_config, run, seed, device: PatchCoreArgs(
             dataset_config=dataset_config,
             dataset_type=run.dataset_type,
-            category=run.class_name,
+            category=run.category,
             img_input_size=(224, 224),
             backbone=run.backbone,
             ad_layers=run.ad_layers,
@@ -80,7 +80,7 @@ MODEL_MAPPINGS = {
         'arg_constructor': lambda dataset_config, run, seed, device: STFPMArgs(
             dataset_config=dataset_config,
             dataset_type=run.dataset_type,
-            categories=[run.class_name],
+            categories=[run.category],
             backbone=run.backbone,
             ad_layers=run.ad_layers,
             contamination_ratio=run.contamination,

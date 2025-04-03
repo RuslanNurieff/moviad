@@ -34,15 +34,15 @@ class RunConfig:
 
     model: str
     dataset_type: str
-    class_name: str
+    category: str
     backbone: str
     ad_layers: list
     contamination: float
 
-    def __init__(self, model, dataset_type, class_name, backbone, ad_layers, contamination):
+    def __init__(self, model, dataset_type, category, backbone, ad_layers, contamination):
         self.model = model
         self.dataset_type = dataset_type
-        self.category = class_name
+        self.category = category
         self.backbone = backbone
         self.ad_layers = ad_layers
         self.contamination = contamination
