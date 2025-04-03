@@ -33,7 +33,7 @@ class PatchCoreArgs(Args):
 
 
 def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
-    train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category)
+    train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category, image_size=args.img_input_size)
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)
 
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
@@ -47,15 +47,8 @@ def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
                           apply_quantization=args.quantized, k=100)
     patchcore.to(args.device)
     patchcore.train()
-    cluster_batch_size = 16
-    trainer = BatchPatchCoreTrainer(patchcore, train_dataloader, test_dataloader, args.device, logger,
-                                    cluster_batch_size=cluster_batch_size)
+    trainer = TrainerPatchCore(patchcore, train_dataloader, test_dataloader, args.device, logger=logger)
     trainer.train()
-
-    logger.config.update({
-        "k": patchcore.k,
-        "cluster_batch_size": cluster_batch_size,
-    }, allow_val_change=True)
 
     # save the model
     if args.save_path:
