@@ -34,6 +34,10 @@ class PatchCoreArgs(Args):
 
 
 def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
+    if logger is not None:
+        logger.config.update({
+            "k_centroids": args.k
+        }, allow_val_change=True)
     train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category, image_size=args.img_input_size)
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)
 
