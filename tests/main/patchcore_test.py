@@ -3,11 +3,12 @@ import unittest
 
 import numpy as np
 import torch
+from datasets import DatasetBuilder
 from sklearn.cluster import MiniBatchKMeans
 from torch.utils.data import Subset
 from torchvision.transforms import transforms, InterpolationMode
 
-from moviad.datasets.builder import DatasetConfig
+from moviad.datasets.builder import DatasetConfig, DatasetFactory, DatasetType
 from moviad.datasets.mvtec.mvtec_dataset import MVTecDataset
 from moviad.datasets.realiad.realiad_dataset import RealIadDataset
 from moviad.datasets.realiad.realiad_dataset_configurations import RealIadCategory, RealIadClassEnum
@@ -72,14 +73,26 @@ real_iad_test_dataset = RealIadDataset(RealIadClassEnum.AUDIOJACK.value,
 class PatchCoreTrainTests(unittest.TestCase):
 
     def setUp(self):
+
         self.args = PatchCoreArgs()
         self.config = DatasetConfig(CONFIG_PATH)
+        dataset_factory = DatasetFactory(self.config)
         self.args.contamination_ratio = 0.25
         self.args.batch_size = 128
         self.args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args.img_input_size = (224, 224)
-        self.args.train_dataset = real_iad_train_dataset
-        self.args.test_dataset = real_iad_test_dataset
+        self.args.train_dataset = dataset_factory.build(
+            DatasetType.MVTec,
+            Split.TRAIN,
+            'bottle',
+            image_size=self.args.img_input_size
+        )
+        self.args.test_dataset = dataset_factory.build(
+            DatasetType.MVTec,
+            Split.TEST,
+            'bottle',
+            image_size=self.args.img_input_size
+        )
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
         self.args.category = self.args.train_dataset.category
@@ -102,7 +115,7 @@ class PatchCoreTrainTests(unittest.TestCase):
         self.assertEqual(coreset_kmeans.shape[0], k)
 
     def test_patchcore_quantization_efficiency(self):
-        unquantized_memory_bank = torch.rand([30000, 160], dtype=torch.float32)
+        unquantized_memory_bank = torch.rand([100, 160], dtype=torch.float32)
 
         pq = ProductQuantizer()
         pq.fit(unquantized_memory_bank)

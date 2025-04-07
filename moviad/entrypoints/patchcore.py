@@ -30,6 +30,7 @@ class PatchCoreArgs(Args):
     batch_size: int = 2
     device: torch.device = None
     quantized: bool = False
+    k: int = 1000
 
 
 def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
@@ -44,7 +45,7 @@ def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
 
     # define the model
     patchcore = PatchCore(args.device, input_size=args.img_input_size, feature_extractor=feature_extractor,
-                          apply_quantization=args.quantized, k=100)
+                          apply_quantization=args.quantized, k=args.k)
     patchcore.to(args.device)
     patchcore.train()
     trainer = TrainerPatchCore(patchcore, train_dataloader, test_dataloader, args.device, logger=logger)

@@ -258,7 +258,7 @@ class PatchCore(nn.Module):
                                                  quantized=self.feature_extractor.quantized)
 
         # Top 100 nearest neighbors
-        top_100_patch_scores, top_100_locations = distances.topk(k=10, largest=False, dim=1)
+        top_100_patch_scores, top_100_locations = distances.topk(k=100, largest=False, dim=1)
 
         # Decode the top 100 neighbors from the memory bank
         top_100_neighbors = self.memory_bank[top_100_locations]

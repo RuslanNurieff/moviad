@@ -6,19 +6,20 @@ class ProductQuantizer:
     quantizer: faiss.IndexPQ
     dim = 1
     subspaces: int
-    centroids_per_subspace: int = 256
+    centroid_bits: int = 8
 
-    def __init__(self, subspaces = None, centroids_per_subspace: int = 256):
-        self.centroids_per_subspace = centroids_per_subspace
+    def __init__(self, subspaces = None, centroids_per_subspace: int = 8):
+        self.centroid_bits = centroids_per_subspace
         self.subspaces = subspaces
 
     def fit(self, input: torch.Tensor | np.ndarray, dim=1) -> None:
         if isinstance(input, torch.Tensor):
             input = input.cpu().numpy()
         self.dim = dim
-        self.subspaces = self.__compute_optimal_m(input) if self.subspaces is None else self.subspaces
+        self.subspaces = self.__compute_optimal_m(input)
+        self.centroid_bits = self.__compute_optimal_k(input)
 
-        self.quantizer = faiss.IndexPQ(input.shape[dim], self.subspaces, int(np.log2(self.centroids_per_subspace)))
+        self.quantizer = faiss.IndexPQ(input.shape[dim], self.subspaces, self.centroid_bits)
         self.quantizer.train(input)
         self.quantizer.add(input)
 
@@ -26,8 +27,7 @@ class ProductQuantizer:
         if isinstance(input, torch.Tensor):
             input = input.cpu().numpy()
 
-        self.subspaces = self.__compute_optimal_m(input) if self.subspaces is None else self.subspaces
-        compressed = np.zeros((input.shape[dim], self.subspaces), dtype=np.uint8)
+        compressed = np.zeros((input.shape[dim], self.centroid_bits), dtype=np.uint8)
 
         self.quantizer.sa_encode(input, compressed)
 
@@ -45,18 +45,36 @@ class ProductQuantizer:
         return torch.tensor(decompressed, dtype=torch.float32)
 
     def __compute_optimal_m(self, input: np.ndarray) -> int:
+        """
+            Compute optimal number of subspaces for product quantizer based on input shape
+
+            Args:
+                input: Input data to compute the optimal number of subspaces
+
+            Returns:
+                m: Optimal number of subspaces
+        """
         d = input.shape[self.dim]
-
-        # Find all divisors of d
         divisors = [m for m in range(1, d + 1) if d % m == 0]
-
-        # Filter based on subvector dimensionality constraints
         valid_m = [m for m in divisors]
-
-        # Suggest an optimal m (default to 8 if valid, else largest valid value)
         suggested_m = 8 if 8 in valid_m else min(valid_m)
 
         return suggested_m
+
+    def __compute_optimal_k(self, input: np.ndarray, safety_factor=4) -> int:
+        """
+            Compute optimal nbits for product quantizer based on number of points
+
+            Args:
+                num_points: Number of training points available
+                safety_factor: Multiple of centroids needed for stable training (typically 2-5)
+
+            Returns:
+                nbits: Optimal number of bits for the product quantizer
+            """
+        num_points = input.shape[0]
+        max_nbits = int(np.log2(num_points / safety_factor))
+        return max(4, min(8, max_nbits))
 
     def save(self, path: str) -> None:
         faiss.write_index(self.quantizer, path)

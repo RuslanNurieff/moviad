@@ -46,6 +46,14 @@ class DatasetFactory:
         self.image_size = (256, 256)
 
     def build(self, dataset_type: DatasetType, split: Split, class_name: str, image_size=(256, 256)) -> IadDataset:
+        """
+        Build a dataset based on the provided type and parameters.
+        :param dataset_type: The type of dataset to build.
+        :param split: The split of the dataset (train/test).
+        :param class_name: The class name for the dataset.
+        :param image_size: The size of the images in the dataset. Defaults to (256, 256).
+        :return: An instance of the dataset.
+        """
         if dataset_type == DatasetType.MVTec:
             return MVTecDataset(
                 TaskType.SEGMENTATION,
