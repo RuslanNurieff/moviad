@@ -74,8 +74,7 @@ class MiicDataset(IadDataset):
             image_entry = MiicDatasetEntry(image)
             if self.preload_imgs:
                 with PIL.Image.open(image_entry.image_path) as img:
-                    image_entry.image = img.copy()
-                # TODO: Preprocess image
+                    image_entry.image = img.convert("RGB")
         return
 
     def __load_test_data(self, normal_images_root_path: Path,
