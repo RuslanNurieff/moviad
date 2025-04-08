@@ -1,12 +1,70 @@
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 from PIL.Image import Image
 import PIL
 from torch.utils.data import Dataset
-
 from moviad.datasets.common import IadDataset
-from moviad.utilities.configurations import Split, TaskType
+from moviad.utilities.configurations import Split, TaskType, LabelName
+
+class MiicDatasetClassEnum(Enum):
+    """
+    Enum class for MIIC dataset classes.
+    """
+    NORMAL = "normal"
+    ANOMALY = "abnormal"
+class IadDatasetConfig:
+    """
+    Configuration class for the IAD dataset.
+    Attributes:
+        task_type (TaskType): The type of task (e.g., anomaly detection).
+        split (Split): The data split (e.g., train, test).
+        image_shape (tuple): The shape of the images.
+        mask_shape (tuple): The shape of the masks.
+    """
+
+    def __init__(self, task_type: TaskType, split: Split, image_shape: (int, int), mask_shape: (int, int),
+                 preload_images: bool = False):
+        self.task_type = task_type
+        self.split = split
+        self.image_shape = image_shape
+        self.mask_shape = mask_shape
+        self.preload_images = preload_images
+
+
+
+class MiicDatasetConfig(IadDatasetConfig):
+    """
+    Configuration class for the Miic dataset.
+    Attributes:
+        training_root_path (Path): Path to the training data.
+        test_abnormal_image_root_path (Path): Path to the test abnormal images.
+        test_normal_image_root_path (Path): Path to the test normal images.
+        test_abnormal_mask_root_path (Path): Path to the test abnormal masks.
+        test_abnormal_bounding_box_root_path (Path): Path to the test abnormal bounding boxes.
+        task_type (TaskType): The type of task (e.g., anomaly detection).
+        split (Split): The data split (e.g., train, test).
+        image_shape (tuple): The shape of the images.
+        mask_shape (tuple): The shape of the masks.
+    """
+
+    def __init__(self, training_root_path: Optional[Path] = None, test_abnormal_image_root_path: Optional[Path] = None,
+                 test_normal_image_root_path: Optional[Path] = None, test_abnormal_mask_root_path: Optional[Path] = None,
+                 test_abnormal_bounding_box_root_path: Optional[Path] = None, task_type: Optional[TaskType] = None,
+                 split: Optional[Split] = None, image_shape: Optional[tuple[int, int]] = None,
+                 mask_shape: Optional[tuple[int, int]] = None, preload_images: bool = True):
+            super().__init__(task_type, split, image_shape, mask_shape, preload_images)
+            self.training_root_path = Path(training_root_path) if training_root_path else None
+            self.test_abnormal_image_root_path = Path(test_abnormal_image_root_path) if test_abnormal_image_root_path else None
+            self.test_normal_image_root_path = Path(test_normal_image_root_path) if test_normal_image_root_path else None
+            self.test_abnormal_mask_root_path = Path(test_abnormal_mask_root_path) if test_abnormal_mask_root_path else None
+            self.test_abnormal_bounding_box_root_path = Path(test_abnormal_bounding_box_root_path) if test_abnormal_bounding_box_root_path else None
+
+
+    def __str__(self):
+        return f"MiicDatasetConfig(root_dir={self.root_dir}, task={self.task}, split={self.split})"
+
 
 
 @dataclass
@@ -17,39 +75,38 @@ class MiicDatasetEntry:
     """
     image_path: Path
     mask_path: str
-    class_name: str
+    class_name: MiicDatasetClassEnum
     image_id: int
     split: Split
     image: Image
 
-    def __init__(self, image_path: Path, mask_path: str = None):
+    def __init__(self, image_path: Path, mask_path: str = None, bounding_box_path: str = None):
         image_file_name = image_path.name
         image_file_name_split = image_file_name.split('_')
         self.image_path = image_path
         self.split = Split(image_file_name_split[0])
-        self.class_name = image_file_name_split[1]
+        self.class_name = MiicDatasetClassEnum(image_file_name_split[1])
         self.image_id = int(image_file_name_split[2].split('.')[0])
         self.mask_path = mask_path
-
+        self.bounding_box_path = bounding_box_path
+        self.normal_images_entries = []
+        self.abnormal_images_entries = []
 
 
 class MiicDataset(IadDataset):
-    def __init__(self, root_dir: str, task: TaskType, split: Split, img_size=(224, 224),
-                 gt_mask_size: Optional[tuple] = None,
-                 preload_imgs: bool = True, ):
+    def __init__(self, miic_dataset_config: MiicDatasetConfig):
         super(MiicDataset)
-        assert Path(root_dir).exists(), f"Dataset path {root_dir} does not exist."
-        self.root_dir = Path(root_dir)
-        self.task = task
-        self.split = split
-        self.preload_imgs = preload_imgs
-        self.img_size = img_size
-        self.gt_mask_size = gt_mask_size
-        self.images = []
+        self.config = miic_dataset_config
 
+        self.images = []
+        self.split = miic_dataset_config.split
+        self.task = miic_dataset_config.task_type
+        self.preload_images = self.config.preload_images
         if self.split == Split.TEST:
             self.masks = []
             self.bounding_boxes = []
+
+
 
     def __len__(self):
         """
@@ -64,24 +121,59 @@ class MiicDataset(IadDataset):
 
     def load_dataset(self):
         if self.split == Split.TRAIN:
-            self.__load_training_data(self.root_dir)
+            self.__load_training_data(self.config.training_root_path)
             return
-        self.__load_test_data(self.root_dir)
+
+        self.__load_test_data(self.config.test_abnormal_image_root_path,
+                              self.config.test_normal_image_root_path,
+                              self.config.test_abnormal_mask_root_path,
+                              self.config.test_abnormal_bounding_box_root_path)
 
     def __load_training_data(self, normal_images_root_path: Path):
+        assert normal_images_root_path.exists(), f"Normal images root path {normal_images_root_path} does not exist"
         image_file_list = sorted(list(normal_images_root_path.glob('**/*.jpg')))
         for image in image_file_list:
             image_entry = MiicDatasetEntry(image)
-            if self.preload_imgs:
+            if self.preload_images:
                 with PIL.Image.open(image_entry.image_path) as img:
                     image_entry.image = img.convert("RGB")
+        self.images = image_file_list
         return
 
     def __load_test_data(self, normal_images_root_path: Path,
                          abnormal_image_root_path: Path,
                          mask_root_path: Path,
                          bounding_box_root_path: Path):
-        pass
+
+        assert normal_images_root_path.exists(), f"Normal images root path {normal_images_root_path} does not exist"
+        assert abnormal_image_root_path.exists(), f"Abnormal images root path {abnormal_image_root_path} does not exist"
+        assert mask_root_path.exists(), f"Mask root path {mask_root_path} does not exist"
+        assert bounding_box_root_path.exists(), f"Bounding box root path {bounding_box_root_path} does not exist"
+
+        normal_image_file_list = sorted(list(normal_images_root_path.glob('**/*.jpg')))
+        abnormal_image_file_list = sorted(list(abnormal_image_root_path.glob('**/*.jpg')))
+        mask_file_list = sorted(list(mask_root_path.glob('**/*.jpg')))
+        bounding_box_file_list = sorted(list(bounding_box_root_path.glob('**/*.jpg')))
+
+        self.normal_images_entries = []
+        self.abnormal_images_entries = []
+
+        for image in normal_image_file_list:
+            image_entry = MiicDatasetEntry(image)
+            if self.preload_images:
+                with PIL.Image.open(image_entry.image_path) as img:
+                    image_entry.image = img.convert("RGB")
+            self.normal_images_entries.append(image_entry)
+
+        for item in zip(abnormal_image_file_list, mask_file_list, bounding_box_file_list):
+            abnormal_image_path, mask_path, bounding_box_path = item
+            image_entry = MiicDatasetEntry(abnormal_image_path, mask_path, bounding_box_path)
+            if self.preload_images:
+                with PIL.Image.open(image_entry.image_path) as img:
+                    image_entry.image = img.convert("RGB")
+            self.abnormal_images_entries.append(image_entry)
+
+        self.images = self.normal_images_entries + self.abnormal_images_entries
 
     def contaminate(self, dataset: Dataset, contamination_ratio: float):
         """

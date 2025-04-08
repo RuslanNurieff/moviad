@@ -15,8 +15,11 @@
       "root_path": "E:/VisualAnomalyDetection/datasets/mvtec"
     },
     "miic": {
-        "train_root_path": "E:/VisualAnomalyDetection/datasets/miic/Anomaly_train",
-        "test_root_path": "E:/VisualAnomalyDetection/datasets/miic/Anomaly_test"
+        "training_root_path": "E:/VisualAnomalyDetection/datasets/miic/Anomaly_train",
+        "test_abnormal_image_root_path": "E:/VisualAnomalyDetection/datasets/miic/Anomaly_test/abnormal_img",
+        "test_normal_image_root_path": "E:/VisualAnomalyDetection/datasets/miic/Anomaly_test/normal_img",
+        "test_abnormal_mask_root_path": "E:/VisualAnomalyDetection/datasets/miic/Anomaly_test/abnormal_mask",
+        "test_abnormal_bounding_box_root_path": "E:/VisualAnomalyDetection/datasets/miic/Anomaly_test/abnormal_bbox"
     }
   },
   "benchmark": [

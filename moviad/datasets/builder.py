@@ -11,13 +11,16 @@ from moviad.utilities.configurations import TaskType, Split
 class DatasetConfig:
     def __init__(self, config_file, image_size=(256, 256)):
         self.config = self.load_config(config_file)
+        self.miic_test_abnormal_bounding_box_root_path = self.convert_path(self.config['datasets'].get('miic', {}).get('test_abnormal_bounding_box_root_path', ''))
+        self.miic_test_abnormal_mask_root_path = self.convert_path(self.config['datasets'].get('miic', {}).get('test_abnormal_mask_root_path', ''))
+        self.miic_test_normal_image_root_path = self.convert_path(self.config['datasets'].get('miic', {}).get('test_normal_image_root_path', ''))
+        self.miic_test_abnormal_image_root_path = self.convert_path(self.config['datasets'].get('miic', {}).get('test_abnormal_image_root_path', ''))
         self.realiad_root_path = self.convert_path(self.config['datasets'].get('realiad', {}).get('root_path', ''))
         self.realiad_json_root_path = self.convert_path(self.config['datasets'].get('realiad', {}).get('json_root_path', ''))
         self.visa_root_path = self.convert_path(self.config['datasets'].get('visa', {}).get('root_path', ''))
         self.visa_csv_path = self.convert_path(self.config['datasets'].get('visa', {}).get('csv_path', ''))
         self.mvtec_root_path = self.convert_path(self.config['datasets'].get('mvtec', {}).get('root_path', ''))
-        self.miic_train_root_path = self.convert_path(self.config['datasets'].get('miic', {}).get('train_root_path', ''))
-        self.miic_test_root_path = self.convert_path(self.config['datasets'].get('miic', {}).get('test_root_path', ''))
+        self.miic_train_root_path = self.convert_path(self.config['datasets'].get('miic', {}).get('training_root_path', ''))
         self.image_size = image_size
 
     def load_config(self, config_file):
