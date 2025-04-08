@@ -88,15 +88,15 @@ class MVTecDataset(IadDataset):
     """
 
     def __init__(
-            self,
-            task: TaskType,
-            root: str,
-            category: str,
-            split: Split,
-            norm: bool = True,
-            img_size=(224, 224),
-            gt_mask_size: Optional[tuple] = None,
-            preload_imgs: bool = True,
+        self,
+        task: TaskType,
+        root: str,
+        category: str,
+        split: Split,
+        norm: bool = True,
+        img_size=(224, 224),
+        gt_mask_size: Optional[tuple] = None,
+        preload_imgs: bool = True,
     ) -> None:
         super(MVTecDataset)
 
@@ -137,6 +137,8 @@ class MVTecDataset(IadDataset):
                 ),
             ]
         )
+
+        self.load_dataset()
 
 
     def compute_contamination_ratio(self) -> float:

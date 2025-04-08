@@ -1,18 +1,11 @@
 import gc
-import pathlib
 import torch
 from dataclasses import dataclass
-from tqdm import tqdm
 from moviad.common.args import Args
-from moviad.datasets.builder import DatasetFactory
 from moviad.datasets.common import IadDataset
 from moviad.entrypoints.common import load_datasets
-from moviad.trainers.batched_trainer_patchcore import BatchPatchCoreTrainer
-from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
-from moviad.models.patchcore.patchcore import PatchCore
-from moviad.trainers.trainer_patchcore import TrainerPatchCore
-from moviad.utilities.configurations import TaskType, Split
-from moviad.utilities.evaluator import Evaluator
+from moviad.models.rd4ad import RD4AD
+from moviad.trainers.trainer_rd4ad import RD4AD_Trainer
 
 
 @dataclass
@@ -27,10 +20,10 @@ class RD4ADArgs(Args):
     device: torch.device = None
 
 
-def train_patchcore(args: RD4ADArgs, logger=None) -> None:
+def train_rd4ad(args: RD4ADArgs, logger=None) -> None:
 
     train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category, image_size=args.img_input_size)
-    feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)
+
 
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
                                                    drop_last=True)
@@ -39,16 +32,14 @@ def train_patchcore(args: RD4ADArgs, logger=None) -> None:
                                                   drop_last=True)
 
     # define the model
-    patchcore = PatchCore(args.device, input_size=args.img_input_size, feature_extractor=feature_extractor,
-                          apply_quantization=args.quantized, k=args.k)
-    patchcore.to(args.device)
-    patchcore.train()
-    trainer = TrainerPatchCore(patchcore, train_dataloader, test_dataloader, args.device, logger=logger)
+    model = RD4AD(args.device,args.img_input_size)
+    model.to(args.device)
+    trainer = RD4AD_Trainer(model, train_dataloader, test_dataloader, args.device, logger=logger)
     trainer.train()
 
     # save the model
     if args.save_path:
-        torch.save(patchcore.state_dict(), args.save_path)
+        torch.save(model.state_dict(), args.save_path)
 
     # force garbage collector in case
     del patchcore

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from models.rd4ad import RD4AD
+from moviad.models.rd4ad.rd4ad import RD4AD
 from utilities.evaluator import Evaluator
 
 class TrainerResult:
@@ -27,7 +27,7 @@ class TrainerResult:
         self.pxl_pr = pxl_pr
         self.pxl_pro = pxl_pro
 
-class RD4AD_Trainer:
+class TrainerRD4AD:
 
     @staticmethod
     def loss_function(teacher_features: List[torch.Tensor], student_features: List[torch.Tensor]):
@@ -47,20 +47,18 @@ class RD4AD_Trainer:
         return loss
 
     def __init__(
-            self,
-            r4ad_model: RD4AD,
-            train_dataloader: torch.utils.data.DataLoader,
-            test_dataloder: torch.utils.data.DataLoader,
-            category: str,
-            device: str,
-            logger=None
+        self,
+        r4ad_model: RD4AD,
+        train_dataloader: torch.utils.data.DataLoader,
+        test_dataloder: torch.utils.data.DataLoader,
+        device: str,
+        logger=None
     ):
         self.model = r4ad_model
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloder
         self.device = device
         self.evaluator = Evaluator(self.test_dataloader, self.device)
-        self.category = category
         self.logger = logger
 
     def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
@@ -75,6 +73,14 @@ class RD4AD_Trainer:
             betas=(0.5,0.999)
         )
 
+        best_img_roc = 0
+        best_pxl_roc = 0
+        best_img_f1 = 0
+        best_pxl_f1 = 0
+        best_img_pr = 0
+        best_pxl_pr = 0
+        best_pxl_pro = 0
+
         for epoch in trange(epochs):
 
             print(f"EPOCH: {epoch}")
@@ -88,30 +94,34 @@ class RD4AD_Trainer:
                 batch = batch.to(self.device)
                 teacher_features, bn_features, student_features = self.model(batch)
 
-                loss = RD4AD_Trainer.loss_function(teacher_features, student_features)
+                loss = TrainerRD4AD.loss_function(teacher_features, student_features)
 
                 batch_loss += loss.item()
-                self.logger.log({"loss": loss.item()})
+                if self.logger: 
+                    self.logger.log({"loss": loss.item()})
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
             avg_batch_loss = batch_loss / len(self.train_dataloader)
-            self.logger.log({"avg_batch_loss": avg_batch_loss})
+            if self.logger:
+                self.logger.log({"avg_batch_loss": avg_batch_loss})
+            print(f"Avg loss on epoch {epoch}: {avg_batch_loss}")
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:
                 print("Evaluating model...")
                 img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.model)
 
-                self.logger.log({
-                    "img_roc": img_roc,
-                    "pxl_roc": pxl_roc,
-                    "f1_img": f1_img,
-                    "f1_pxl": f1_pxl,
-                    "img_pr": img_pr,
-                    "pxl_pr": pxl_pr,
-                    "pxl_pro": pxl_pro
-                })
+                if self.logger:
+                    self.logger.log({
+                        "img_roc": img_roc,
+                        "pxl_roc": pxl_roc,
+                        "f1_img": f1_img,
+                        "f1_pxl": f1_pxl,
+                        "img_pr": img_pr,
+                        "pxl_pr": pxl_pr,
+                        "pxl_pro": pxl_pro
+                    })
 
                 best_img_roc = img_roc if img_roc > best_img_roc else best_img_roc
                 best_pxl_roc = pxl_roc if pxl_roc > best_pxl_roc else best_pxl_roc
@@ -143,24 +153,14 @@ class RD4AD_Trainer:
                 pxl_pro: {best_pxl_pro} \n
             """)
 
-            best_results = TrainerResult(
-                img_roc=best_img_roc,
-                pxl_roc=best_pxl_roc,
-                f1_img=best_img_f1,
-                f1_pxl=best_pxl_f1,
-                img_pr=best_img_pr,
-                pxl_pr=best_pxl_pr,
-                pxl_pro=best_pxl_pro
-            )
+        best_results = TrainerResult(
+            img_roc=best_img_roc,
+            pxl_roc=best_pxl_roc,
+            f1_img=best_img_f1,
+            f1_pxl=best_pxl_f1,
+            img_pr=best_img_pr,
+            pxl_pr=best_pxl_pr,
+            pxl_pro=best_pxl_pro
+        )
 
-            results = TrainerResult(
-                img_roc=img_roc,
-                pxl_roc=pxl_roc,
-                f1_img=f1_img,
-                f1_pxl=f1_pxl,
-                img_pr=img_pr,
-                pxl_pr=pxl_pr,
-                pxl_pro=pxl_pro
-            )
-
-        return results, best_results
+        return best_results
