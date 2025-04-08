@@ -80,7 +80,7 @@ class StfpmBenchmark(unittest.TestCase):
         self.args.test_dataset = real_iad_test_dataset
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
-        self.args.categories = [self.args.train_dataset.class_name]
+        self.args.categories = [self.args.train_dataset.category]
         self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)
@@ -111,7 +111,7 @@ class StfpmBenchmark(unittest.TestCase):
         self.args.test_dataset = visa_test_dataset
         self.args.train_dataset.load_dataset()
         self.args.test_dataset.load_dataset()
-        self.args.categories = [self.args.train_dataset.class_name]
+        self.args.categories = [self.args.train_dataset.category]
         self.contamination = 0
         if self.args.contamination_ratio > 0:
             self.args.train_dataset.contaminate(self.args.test_dataset, self.args.contamination_ratio)

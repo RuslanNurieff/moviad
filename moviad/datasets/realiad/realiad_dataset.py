@@ -1,18 +1,8 @@
 import math
-from cProfile import label
-from enum import Enum
-from os.path import split
-
 import numpy as np
 import torch
-from PIL import Image
-import json
 from typing import List, Optional
 import os
-
-from torch.utils.data import Dataset
-from pathlib import Path
-
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 
@@ -38,7 +28,7 @@ class RealIadDataset(IadDataset):
         self.json_root_path = json_root_path
         self.img_root_dir = img_root_dir
         self.transform = transform
-        self.class_name = class_name
+        self.category = class_name
         self.data: RealIadData = None
         self.task = task
         self.split = split
@@ -102,7 +92,7 @@ class RealIadDataset(IadDataset):
         return dataset_1, dataset_2
 
     def load_dataset(self) -> None:
-        self.data = RealIadData.from_json(self.json_root_path, self.class_name, self.split)
+        self.data = RealIadData.from_json(self.json_root_path, self.category, self.split)
         if self.data is None:
             raise ValueError("Dataset is None")
 
