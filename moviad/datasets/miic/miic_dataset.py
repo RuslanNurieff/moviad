@@ -2,9 +2,14 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Optional
+
+import torch
 from PIL.Image import Image
 import PIL
 from torch.utils.data import Dataset
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode
+
 from moviad.datasets.common import IadDataset
 from moviad.utilities.configurations import Split, TaskType, LabelName
 
@@ -52,8 +57,8 @@ class MiicDatasetConfig(IadDatasetConfig):
     def __init__(self, training_root_path: Optional[Path] = None, test_abnormal_image_root_path: Optional[Path] = None,
                  test_normal_image_root_path: Optional[Path] = None, test_abnormal_mask_root_path: Optional[Path] = None,
                  test_abnormal_bounding_box_root_path: Optional[Path] = None, task_type: Optional[TaskType] = None,
-                 split: Optional[Split] = None, image_shape: Optional[tuple[int, int]] = None,
-                 mask_shape: Optional[tuple[int, int]] = None, preload_images: bool = True):
+                 split: Optional[Split] = None, image_shape: Optional[tuple[int, int]] = (256, 256),
+                 mask_shape: Optional[tuple[int, int]] = (256, 256), preload_images: bool = True):
             super().__init__(task_type, split, image_shape, mask_shape, preload_images)
             self.training_root_path = Path(training_root_path) if training_root_path else None
             self.test_abnormal_image_root_path = Path(test_abnormal_image_root_path) if test_abnormal_image_root_path else None
@@ -79,6 +84,7 @@ class MiicDatasetEntry:
     image_id: int
     split: Split
     image: Image
+    mask: Image
 
     def __init__(self, image_path: Path, mask_path: str = None, bounding_box_path: str = None):
         image_file_name = image_path.name
@@ -94,19 +100,29 @@ class MiicDatasetEntry:
 
 
 class MiicDataset(IadDataset):
-    def __init__(self, miic_dataset_config: MiicDatasetConfig):
+    def __init__(self, miic_dataset_config: MiicDatasetConfig, transform=None):
         super(MiicDataset)
         self.config = miic_dataset_config
 
-        self.images = []
+        self.data = []
         self.split = miic_dataset_config.split
         self.task = miic_dataset_config.task_type
         self.preload_images = self.config.preload_images
-        if self.split == Split.TEST:
-            self.masks = []
-            self.bounding_boxes = []
 
+        if transform is None:
+            self.transform = transforms.Compose([
+                transforms.Resize(self.config.image_shape),
+                transforms.PILToTensor(),
+                transforms.Resize(
+                    self.config.image_shape,
+                    antialias=True,
+                    interpolation=InterpolationMode.NEAREST,
+                ),
+                transforms.ConvertImageDtype(torch.float32),
+            ])
 
+    def set_category(self, category: str):
+        self.category = category
 
     def __len__(self):
         """
@@ -114,10 +130,28 @@ class MiicDataset(IadDataset):
         Returns:
             int: The number of samples in the dataset.
         """
-        return len(self.images)
+        return len(self.data)
 
     def __getitem__(self, idx):
-        return None
+        image_entry = self.data[idx]
+        image = image_entry.image
+
+        if self.split == Split.TRAIN:
+            if self.transform:
+                image = self.transform(image)
+            return image
+
+        label = LabelName.NORMAL.value if image_entry.class_name == MiicDatasetClassEnum.NORMAL else LabelName.ABNORMAL.value
+        mask = None
+        path = str(image_entry.image_path)
+        if self.transform:
+            image = self.transform(image)
+            if mask is not None:
+                mask = self.transform(mask)
+            else:
+                mask = torch.zeros((1, *self.config.mask_shape), dtype=torch.float32)
+
+        return image, mask, label, path
 
     def load_dataset(self):
         if self.split == Split.TRAIN:
@@ -137,7 +171,7 @@ class MiicDataset(IadDataset):
             if self.preload_images:
                 with PIL.Image.open(image_entry.image_path) as img:
                     image_entry.image = img.convert("RGB")
-        self.images = image_file_list
+            self.data.append(image_entry)
         return
 
     def __load_test_data(self, normal_images_root_path: Path,
@@ -154,16 +188,12 @@ class MiicDataset(IadDataset):
         abnormal_image_file_list = sorted(list(abnormal_image_root_path.glob('**/*.jpg')))
         mask_file_list = sorted(list(mask_root_path.glob('**/*.jpg')))
         bounding_box_file_list = sorted(list(bounding_box_root_path.glob('**/*.jpg')))
-
-        self.normal_images_entries = []
-        self.abnormal_images_entries = []
-
         for image in normal_image_file_list:
             image_entry = MiicDatasetEntry(image)
             if self.preload_images:
                 with PIL.Image.open(image_entry.image_path) as img:
                     image_entry.image = img.convert("RGB")
-            self.normal_images_entries.append(image_entry)
+            self.data.append(image_entry)
 
         for item in zip(abnormal_image_file_list, mask_file_list, bounding_box_file_list):
             abnormal_image_path, mask_path, bounding_box_path = item
@@ -171,22 +201,13 @@ class MiicDataset(IadDataset):
             if self.preload_images:
                 with PIL.Image.open(image_entry.image_path) as img:
                     image_entry.image = img.convert("RGB")
-            self.abnormal_images_entries.append(image_entry)
+                with PIL.Image.open(mask_path) as mask:
+                    image_entry.mask = mask.convert("L")
+            self.data.append(image_entry)
 
-        self.images = self.normal_images_entries + self.abnormal_images_entries
 
-    def contaminate(self, dataset: Dataset, contamination_ratio: float):
-        """
-        Contaminate the dataset by adding abnormal samples from the given dataset.
-
-        Args:
-            dataset (Dataset): The dataset to contaminate.
-            contamination_ratio (float): The ratio of contamination.
-
-        Returns:
-            int: The number of contaminated samples.
-        """
-        return 0
+    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
+        raise NotImplementedError("Dataset contamination not yet supported on this dataset.")
 
     def compute_contamination_ratio(self):
         """
@@ -195,4 +216,4 @@ class MiicDataset(IadDataset):
         Returns:
             float: The contamination ratio.
         """
-        return 0.0
+        raise NotImplementedError("Dataset contamination not yet supported on this dataset.")

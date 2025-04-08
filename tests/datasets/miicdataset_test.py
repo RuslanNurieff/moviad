@@ -37,23 +37,31 @@ class MiicDatasetTests(unittest.TestCase):
         self.assertEqual(self.test_dataset.split, Split.TEST)
 
     def test_dataset_should_load_images(self):
-        self.assertIsNotNone(self.training_dataset.images)
-        self.assertGreater(len(self.training_dataset.images), 0)
-        self.assertEqual(self.training_dataset.__len__(), len(self.training_dataset.images))
+        self.assertIsNotNone(self.training_dataset.data)
+        self.assertGreater(len(self.training_dataset.data), 0)
+        self.assertEqual(self.training_dataset.__len__(), len(self.training_dataset.data))
 
-        self.assertIsNotNone(self.test_dataset.images)
-        self.assertGreater(len(self.test_dataset.images), 0)
-        self.assertEqual(self.test_dataset.__len__(), len(self.test_dataset.images))
-        self.assertIsNotNone(self.test_dataset.normal_images_entries)
-        self.assertIsNotNone(self.test_dataset.abnormal_images_entries)
-        self.assertEqual(len(self.test_dataset.images), len(self.test_dataset.normal_images_entries) + len(
-            self.test_dataset.abnormal_images_entries))
+        self.assertIsNotNone(self.test_dataset.data)
+        self.assertGreater(len(self.test_dataset.data), 0)
+        self.assertEqual(self.test_dataset.__len__(), len(self.test_dataset.data))
+
 
     def test_dataset_should_get_item(self):
-        item = self.training_dataset.__getitem__(0)
-        self.assertIsNotNone(item)
-        self.assertIsInstance(item, torch.Tensor)
+        training_item = self.training_dataset.__getitem__(0)
+        self.assertIsNotNone(training_item)
+        self.assertIs(type(training_item), torch.Tensor)
+        self.assertEqual(training_item.shape, torch.Size([3, self.config.image_size[0], self.config.image_size[1]]))
 
+        test_item = self.test_dataset.__getitem__(0)
+        self.assertIsNotNone(test_item)
+        image, mask, label, path = test_item
+        self.assertIs(type(image), torch.Tensor)
+        self.assertEqual(image.shape, torch.Size([3, self.config.image_size[0], self.config.image_size[1]]))
+        self.assertIs(type(mask), torch.Tensor)
+        self.assertEqual(mask.shape, torch.Size([1, self.config.image_size[0], self.config.image_size[1]]))
+        self.assertIs(type(label), int)
+        self.assertIn(label, [LabelName.NORMAL.value, LabelName.ABNORMAL.value])
+        self.assertIs(type(path), str)
 
 
 
