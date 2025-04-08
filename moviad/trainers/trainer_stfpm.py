@@ -101,7 +101,6 @@ def train_model(
 
         # train the model
         for batch_img in train_loader:
-
             t_feat, s_feat = model(batch_img.to(device))
 
             loss = loss_fn(t_feat[0], s_feat[0])
@@ -227,17 +226,17 @@ def train_param_grid_step(dataset_path,
         train_dataset, batch_size=batch_size, pin_memory=True, shuffle=True
     )
 
-    if logger is not None:
-        logger.config.update(
-            {
-                "category": category,
-                "ad_layers": ad_layers,
-                "epochs": epochs,
-                "seed": seed,
-                "student_bootstrap_layer": student_bootstrap_layer
-            },
-            allow_val_change=True
-        )
+    # if logger is not None:
+    #     logger.config.update(
+    #         {
+    #             "category": category,
+    #             "ad_layers": ad_layers,
+    #             "epochs": epochs,
+    #             "seed": seed,
+    #             "student_bootstrap_layer": student_bootstrap_layer
+    #         },
+    #         allow_val_change=True
+    #     )
 
     model = Stfpm(
         input_size=img_input_size,
