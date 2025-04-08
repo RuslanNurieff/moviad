@@ -27,7 +27,10 @@ class ProductQuantizer:
             input = input.cpu().numpy()
 
         self.subspaces = self.__compute_optimal_m(input) if self.subspaces is None else self.subspaces
-        compressed = np.zeros((input.shape[dim], self.subspaces), dtype=np.uint8)
+
+        n = input.shape[dim]
+        code_size = self.quantizer.sa_code_size()
+        compressed = np.zeros((n, code_size), dtype=np.uint8)
 
         self.quantizer.sa_encode(input, compressed)
 
