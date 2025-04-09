@@ -277,6 +277,9 @@ class CustomFeatureExtractor:
             model = getattr(torchvision.models, backbone)(weights = "IMAGENET1K_V1")
         else:
             model = getattr(torchvision.models, backbone)()
+        
+        return_nodes = {layer: layer for layer in return_nodes} 
+        
         feature_extractor = create_feature_extractor(
             model=model, return_nodes=return_nodes
         )
@@ -287,13 +290,13 @@ class CustomFeatureExtractor:
 
         layers = None
 
-        max_idx = self.layers_idx[-1] + 1
+        max_idx = int(self.layers_idx[-1]) + 1
 
         if "mcunet" in self.model_name:
             layers = [self.model.first_conv] + list(self.model.blocks)[:max_idx]
 
             # we must shift by one the layers ids because of the first conv layer
-            self.layers_idx = [idx + 1 for idx in self.layers_idx]
+            self.layers_idx = [int(idx) + 1 for idx in self.layers_idx]
         elif "micronet" in self.model_name:
             layers = list(self.model.features)[:max_idx]
         elif "phinet" in self.model_name:
@@ -312,7 +315,7 @@ class CustomFeatureExtractor:
             layers = list(self.model.children())
 
         for idx in self.layers_idx:
-            layers[idx].register_forward_hook(hook)
+            layers[int(idx)].register_forward_hook(hook)
 
     def __call__(self, batch: torch.Tensor) -> list[torch.Tensor]:
 
