@@ -103,7 +103,7 @@ class MiicDatasetEntry:
 
 class MiicDataset(IadDataset):
     def __init__(self, miic_dataset_config: MiicDatasetConfig, transform=None):
-        super(MiicDataset)
+        super().__init__()
         self.config = miic_dataset_config
 
         self.data = []
