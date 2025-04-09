@@ -2,7 +2,7 @@ import gc
 import torch
 from dataclasses import dataclass
 from moviad.common.args import Args
-from moviad.datasets.common import IadDataset
+from moviad.datasets.iad_dataset import IadDataset
 from moviad.entrypoints.common import load_datasets
 from moviad.models.rd4ad import RD4AD
 from moviad.trainers.trainer_rd4ad import RD4AD_Trainer
