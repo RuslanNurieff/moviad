@@ -30,9 +30,14 @@ class PatchCoreArgs(Args):
     batch_size: int = 2
     device: torch.device = None
     quantized: bool = False
+    k: int = 1000
 
 
 def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
+    if logger is not None:
+        logger.config.update({
+            "k_centroids": args.k
+        }, allow_val_change=True)
     train_dataset, test_dataset = load_datasets(args.dataset_config, args.dataset_type, args.category, image_size=args.img_input_size)
     feature_extractor = CustomFeatureExtractor(args.backbone, args.ad_layers, args.device, True, False, None)
 
@@ -44,7 +49,7 @@ def train_patchcore(args: PatchCoreArgs, logger=None) -> None:
 
     # define the model
     patchcore = PatchCore(args.device, input_size=args.img_input_size, feature_extractor=feature_extractor,
-                          apply_quantization=args.quantized, k=100)
+                          apply_quantization=args.quantized, k=args.k)
     patchcore.to(args.device)
     patchcore.train()
     trainer = TrainerPatchCore(patchcore, train_dataloader, test_dataloader, args.device, logger=logger)
