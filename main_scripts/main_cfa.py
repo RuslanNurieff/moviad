@@ -22,10 +22,12 @@ def main_train_cfa(dataset_path: str, category: str, backbone: str, ad_layers: l
     print(f"Training CFA for category: {category} \n")
 
     train_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "train")
+    train_dataset.load_dataset()
     print(f"Length train dataset: {len(train_dataset)}")
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True, drop_last=True)
 
     test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "test")
+    test_dataset.load_dataset()
     print(f"Length test dataset: {len(test_dataset)}")
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=2, shuffle=True, drop_last=True)
 
@@ -49,6 +51,7 @@ def main_test_cfa(dataset_path: str, category: str, backbone: str, ad_layers: li
     gamma_d = 1
 
     test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "test")
+    test_dataset.load_dataset()
     print(f"Length test dataset: {len(test_dataset)}")
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=True)
 

@@ -27,12 +27,14 @@ def train_patchcore(dataset_path: str, category: str, backbone: str, ad_layers: 
 
     # define training and test datasets
     train_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "train")
+    train_dataset.load_dataset()
     if max_dataset_size is not None:
         train_dataset = torch.utils.data.Subset(train_dataset, range(max_dataset_size))
     print(f"Length train dataset: {len(train_dataset)}")
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=4, shuffle=True)
 
     test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "test")
+    test_dataset.load_dataset()
     if max_dataset_size is not None:
         test_dataset = torch.utils.data.Subset(test_dataset, range(max_dataset_size))
     print(f"Length test dataset: {len(test_dataset)}")
@@ -63,6 +65,7 @@ def train_patchcore(dataset_path: str, category: str, backbone: str, ad_layers: 
 def test_patchcore(dataset_path: str, category: str, backbone: str, ad_layers: list, model_checkpoint_path: str,
                    device: torch.device, max_dataset_size: int = None, visual_test_path: str = None):
     test_dataset = MVTecDataset(TaskType.SEGMENTATION, dataset_path, category, "test")
+    test_dataset.load_dataset()
 
     if max_dataset_size is not None:
         test_dataset = torch.utils.data.Subset(test_dataset, range(max_dataset_size))
@@ -131,8 +134,7 @@ def main():
     if args.mode == "train":
         train_patchcore(args.dataset_path, args.category, args.backbone, args.ad_layers, args.save_path, device)
     elif args.mode == "test":
-        test_patchcore(args.dataset_path, args.category, args.backbone, args.ad_layers, args.save_path,
-                       args.visual_test_path, device)
+        test_patchcore(args.dataset_path, args.category, args.backbone, args.ad_layers, args.save_path, device, args.visual_test_path)
 
 
 if __name__ == "__main__":

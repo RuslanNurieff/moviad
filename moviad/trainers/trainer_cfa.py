@@ -124,26 +124,29 @@ class TrainerCFA():
                 """
                 loss = self.cfa_model(batch.to(self.device))
                 batch_loss += loss.item()
-                self.logger.log({"loss": loss.item()})
+                if self.logger is not None:
+                    self.logger.log({"loss": loss.item()})
                 loss.backward()
                 optimizer.step()
 
             avg_batch_loss = batch_loss / len(self.train_dataloader)
-            self.logger.log({"avg_batch_loss": avg_batch_loss})
+            if self.logger is not None:
+                self.logger.log({"avg_batch_loss": avg_batch_loss})
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:
                 print("Evaluating model...")
                 img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.cfa_model)
 
-                self.logger.log({
-                    "img_roc": img_roc,
-                    "pxl_roc": pxl_roc,
-                    "f1_img": f1_img,
-                    "f1_pxl": f1_pxl,
-                    "img_pr": img_pr,
-                    "pxl_pr": pxl_pr,
-                    "pxl_pro": pxl_pro
-                })
+                if self.logger is not None:
+                    self.logger.log({
+                        "img_roc": img_roc,
+                        "pxl_roc": pxl_roc,
+                        "f1_img": f1_img,
+                        "f1_pxl": f1_pxl,
+                        "img_pr": img_pr,
+                        "pxl_pr": pxl_pr,
+                        "pxl_pro": pxl_pro
+                    })
 
                 best_img_roc = img_roc if img_roc > best_img_roc else best_img_roc
                 best_pxl_roc = pxl_roc if pxl_roc > best_pxl_roc else best_pxl_roc

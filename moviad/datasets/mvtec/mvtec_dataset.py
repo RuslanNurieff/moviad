@@ -137,8 +137,7 @@ class MVTecDataset(IadDataset):
                 ),
             ]
         )
-
-
+        
     def compute_contamination_ratio(self) -> float:
         if self.samples is None:
             raise ValueError("Dataset is not loaded")
@@ -161,7 +160,6 @@ class MVTecDataset(IadDataset):
 
     def contains(self, item) -> bool:
         return self.samples['image_path'].eq(item['image_path']).any()
-
     def load_dataset(self):
 
         root = Path(self.root_category)

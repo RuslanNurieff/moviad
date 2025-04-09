@@ -161,7 +161,7 @@ def main(args):
                 save_figures,
             )
 
-            if args.data:
+            if args.train:
                 print("---- PaDiM train ----")
 
                 padim = Padim(
@@ -187,6 +187,9 @@ def main(args):
                     Split.TRAIN,
                     img_size=img_input_size,
                 )
+
+                train_dataset.load_dataset()
+
                 train_dataloader = DataLoader(
                     train_dataset, batch_size=batch_size, pin_memory=True
                 )
@@ -197,7 +200,7 @@ def main(args):
                 print("---- PaDiM test ----")
 
                 # load the model if it was not trained in this run
-                if not args.data:
+                if not args.train:
                     padim = Padim(
                         backbone_model_name,
                         category_name,
@@ -206,7 +209,7 @@ def main(args):
                     )
                     path = padim.get_model_savepath(save_path)
                     padim.load_state_dict(
-                        torch.load(path, map_location=device), strict=False
+                        torch.load(path, map_location=device, weights_only=False), strict=False
                     )
                     padim.to(device)
                     print(f"Loaded model from path: {path}")
@@ -222,6 +225,9 @@ def main(args):
                     img_size=img_input_size,
                     gt_mask_size=output_size,
                 )
+
+                test_dataset.load_dataset()
+
                 test_dataloader = DataLoader(
                     test_dataset, batch_size=batch_size, shuffle=True
                 )

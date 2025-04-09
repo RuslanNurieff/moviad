@@ -29,7 +29,11 @@ class ProductQuantizer:
         if isinstance(input, torch.Tensor):
             input = input.cpu().numpy()
 
-        compressed = np.zeros((input.shape[dim], self.centroid_bits), dtype=np.uint8)
+        self.subspaces = self.__compute_optimal_m(input) if self.subspaces is None else self.subspaces
+
+        n = input.shape[dim]
+        code_size = self.quantizer.sa_code_size()
+        compressed = np.zeros((n, code_size), dtype=np.uint8)
 
         self.quantizer.sa_encode(input, compressed)
 
