@@ -72,8 +72,7 @@ class MiicDatasetConfig(IadDatasetConfig):
             test_abnormal_bounding_box_root_path) if test_abnormal_bounding_box_root_path else None
 
     def __str__(self):
-        return f"MiicDatasetConfig(root_dir={self.root_dir}, task={self.task}, split={self.split})"
-
+        return f"MiicDatasetConfig(training_root_path={self.training_root_path}, task={self.task}, split={self.split})"
 
 @dataclass
 class MiicDatasetEntry:
