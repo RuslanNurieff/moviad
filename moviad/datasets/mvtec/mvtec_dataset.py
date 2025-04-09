@@ -138,8 +138,6 @@ class MVTecDataset(IadDataset):
             ]
         )
 
-        self.load_dataset()
-
 
     def compute_contamination_ratio(self) -> float:
         if self.samples is None:
