@@ -12,6 +12,10 @@ class IadDataset(Dataset):
     contamination_ratio: float
 
     @abstractmethod
+    def is_loaded(self) -> bool:
+        pass
+
+    @abstractmethod
     def __len__(self):
         pass
 

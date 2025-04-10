@@ -40,6 +40,7 @@ CATEGORIES = (
     "zipper",
 )
 
+
 class MvtecClassEnum(Enum):
     BOTTLE = "bottle"
     CABLE = "cable"
@@ -56,7 +57,6 @@ class MvtecClassEnum(Enum):
     TRANSISTOR = "transistor"
     WOOD = "wood"
     ZIPPER = "zipper"
-
 
 
 IMG_SIZE = (3, 900, 900)
@@ -88,15 +88,15 @@ class MVTecDataset(IadDataset):
     """
 
     def __init__(
-        self,
-        task: TaskType,
-        root: str,
-        category: str,
-        split: Split,
-        norm: bool = True,
-        img_size=(224, 224),
-        gt_mask_size: Optional[tuple] = None,
-        preload_imgs: bool = True,
+            self,
+            task: TaskType,
+            root: str,
+            category: str,
+            split: Split,
+            norm: bool = True,
+            img_size=(224, 224),
+            gt_mask_size: Optional[tuple] = None,
+            preload_imgs: bool = True,
     ) -> None:
         super(MVTecDataset)
 
@@ -137,7 +137,7 @@ class MVTecDataset(IadDataset):
                 ),
             ]
         )
-        
+
     def compute_contamination_ratio(self) -> float:
         if self.samples is None:
             raise ValueError("Dataset is not loaded")
@@ -147,7 +147,7 @@ class MVTecDataset(IadDataset):
             return 0
 
         total_contamination_ratio = 0
-        for index, row  in contaminated_samples.iterrows():
+        for index, row in contaminated_samples.iterrows():
             if not Path(row["mask_path"]).exists():
                 raise ValueError("Mask file does not exist")
 
@@ -156,11 +156,16 @@ class MVTecDataset(IadDataset):
             total_contamination_ratio += compute_mask_contamination(mask)
         return total_contamination_ratio / len(contaminated_samples)
 
-
+    def is_loaded(self) -> bool:
+        return self.samples is not None
 
     def contains(self, item) -> bool:
         return self.samples['image_path'].eq(item['image_path']).any()
+
     def load_dataset(self):
+        if self.is_loaded():
+            print("Dataset already loaded")
+            return
 
         root = Path(self.root_category)
 

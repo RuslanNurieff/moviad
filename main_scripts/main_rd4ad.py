@@ -44,10 +44,10 @@ def train_rd4ad(dataset_path: str, category: str, backbone: str, ad_layers: list
 
     # save the model
     if save_path:
-        torch.save(patchcore.state_dict(), save_path)
+        torch.save(model.state_dict(), save_path)
 
         # force garbage collector in case
-    del patchcore
+    del model
     del test_dataset
     del train_dataset
     del train_dataloader

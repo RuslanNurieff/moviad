@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 
 from moviad.models.rd4ad.rd4ad import RD4AD
-from utilities.evaluator import Evaluator
+from moviad.utilities.evaluator import Evaluator
 
 class TrainerResult:
     img_roc: float
