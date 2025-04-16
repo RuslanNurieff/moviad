@@ -8,25 +8,7 @@ from tqdm import tqdm
 from moviad.models.cfa.cfa import CFA
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
 from moviad.utilities.evaluator import Evaluator
-
-
-class TrainerResult:
-    img_roc: float
-    pxl_roc: float
-    f1_img: float
-    f1_pxl: float
-    img_pr: float
-    pxl_pr: float
-    pxl_pro: float
-
-    def __init__(self, img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro):
-        self.img_roc = img_roc
-        self.pxl_roc = pxl_roc
-        self.f1_img = f1_img
-        self.f1_pxl = f1_pxl
-        self.img_pr = img_pr
-        self.pxl_pr = pxl_pr
-        self.pxl_pro = pxl_pro
+from moviad.trainers.trainer import TrainerResult
 
 
 class TrainerCFA():
@@ -35,45 +17,37 @@ class TrainerCFA():
 
     Args:
         cfa_model (CFA): model to be trained
-        backbone (str) : feature extractor backbone
         feature_extractor (CustomFeatureExtractor): feature extractor to be used
         train_dataloader (torch.utils.data.DataLoader): train dataloader
         test_dataloder (torch.utils.data.DataLoader): test dataloader
-        category (str): mvtec category
         device (str): device to be used for the training
     """
 
     def __init__(
-            self,
-            cfa_model: CFA,
-            backbone: str,
-            feature_extractor: CustomFeatureExtractor,
-            train_dataloader: torch.utils.data.DataLoader,
-            test_dataloder: torch.utils.data.DataLoader,
-            category: str,
-            device: str,
-            logger=None
+        self,
+        cfa_model: CFA,
+        feature_extractor: CustomFeatureExtractor,
+        train_dataloader: torch.utils.data.DataLoader,
+        test_dataloder: torch.utils.data.DataLoader,
+        device: str,
+        logger=None
     ):
         self.cfa_model = cfa_model
-        self.backbone = backbone
         self.feature_extractor = feature_extractor
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloder
         self.device = device
         self.evaluator = Evaluator(self.test_dataloader, self.device)
-        self.category = category
         self.logger = logger
 
     def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
         """
-        Train the model by first extracting the features from the batches, transform them 
+        Train the model by first extracting the features from the batches, transform them
         with the patch descriptor and then apply the CFA loss
 
         Args:
-            evaluation_epoch_interval: optional, number of epochs between evaluations
             epochs (int) : number of epochs for the training
-            save_model (bool) : true if the model must be saved at the end of training 
-            visual_test (bool) : true if we want to produce test images with heatmaps
+            evaluation_epoch_interval: optional, number of epochs between evaluations
         """
 
         params = [{'params': self.cfa_model.parameters()}, ]
@@ -98,13 +72,11 @@ class TrainerCFA():
                     "epochs": epochs,
                     "learning_rate": learning_rate,
                     "weight_decay": weight_decay,
-                    "category": self.category,
                     "optimizer": "AdamW"
                 },
                 allow_val_change=True
             )
             self.logger.watch(self.cfa_model, log='all', log_freq=10)
-        self.cfa_model.train()
 
         for epoch in range(epochs):
 
@@ -119,7 +91,7 @@ class TrainerCFA():
                 p = self.feature_extractor(batch.to(self.device))
                 if isinstance(p, dict):
                     p = list(p.values())
-                    
+
                 loss, _ = self.cfa_model(p)
                 """
                 loss = self.cfa_model(batch.to(self.device))
@@ -131,7 +103,10 @@ class TrainerCFA():
 
             avg_batch_loss = batch_loss / len(self.train_dataloader)
             if self.logger is not None:
-                self.logger.log({"avg_batch_loss": avg_batch_loss})
+                self.logger.log({
+                    "current_epoch" : epoch,
+                    "avg_batch_loss": avg_batch_loss
+                })
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:
                 print("Evaluating model...")
@@ -177,6 +152,17 @@ class TrainerCFA():
                 pxl_pr: {best_pxl_pr} \n
                 pxl_pro: {best_pxl_pro} \n
         """)
+
+        if self.logger is not None:
+            self.logger.log({
+                "best_img_roc": img_roc,
+                "best_pxl_roc": pxl_roc,
+                "best_f1_img": f1_img,
+                "best_f1_pxl": f1_pxl,
+                "best_img_pr": img_pr,
+                "best_pxl_pr": pxl_pr,
+                "best_pxl_pro": pxl_pro
+            })
 
         best_results = TrainerResult(
             img_roc=best_img_roc,

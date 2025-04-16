@@ -66,11 +66,12 @@ class TrainerRD4AD:
         self.model.train()
 
         learning_rate = 0.005
+        betas=(0.5,0.999)
 
         optimizer = torch.optim.Adam(
             list(self.model.decoder.parameters())+list(self.model.bn.parameters()),
             lr=learning_rate,
-            betas=(0.5,0.999)
+            betas=betas,
         )
 
         best_img_roc = 0
@@ -80,6 +81,16 @@ class TrainerRD4AD:
         best_img_pr = 0
         best_pxl_pr = 0
         best_pxl_pro = 0
+
+        if self.logger:
+            self.logger.config.update(
+                {
+                    "learning_rate": learning_rate,
+                    "optimizer": "Adam"
+                },
+                allow_val_change=True
+            )
+            self.logger.watch(self.model, log='all', log_freq=10)
 
         for epoch in trange(epochs):
 
@@ -97,7 +108,7 @@ class TrainerRD4AD:
                 loss = TrainerRD4AD.loss_function(teacher_features, student_features)
 
                 batch_loss += loss.item()
-                if self.logger: 
+                if self.logger:
                     self.logger.log({"loss": loss.item()})
                 optimizer.zero_grad()
                 loss.backward()
@@ -105,7 +116,10 @@ class TrainerRD4AD:
 
             avg_batch_loss = batch_loss / len(self.train_dataloader)
             if self.logger:
-                self.logger.log({"avg_batch_loss": avg_batch_loss})
+                self.logger.log({
+                    "current_epoch" : epoch,
+                    "avg_batch_loss": avg_batch_loss
+                })
             print(f"Avg loss on epoch {epoch}: {avg_batch_loss}")
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:
@@ -142,16 +156,27 @@ class TrainerRD4AD:
                     pxl_pro: {pxl_pro} \n
                 """)
 
-            print("Best training performances:")
-            print(f"""
-                img_roc: {best_img_roc} \n
-                pxl_roc: {best_pxl_roc} \n
-                f1_img: {best_img_f1} \n
-                f1_pxl: {best_pxl_f1} \n
-                img_pr: {best_img_pr} \n
-                pxl_pr: {best_pxl_pr} \n
-                pxl_pro: {best_pxl_pro} \n
-            """)
+        print("Best training performances:")
+        print(f"""
+            img_roc: {best_img_roc} \n
+            pxl_roc: {best_pxl_roc} \n
+            f1_img: {best_img_f1} \n
+            f1_pxl: {best_pxl_f1} \n
+            img_pr: {best_img_pr} \n
+            pxl_pr: {best_pxl_pr} \n
+            pxl_pro: {best_pxl_pro} \n
+        """)
+
+        if self.logger is not None:
+            self.logger.log({
+                "best_img_roc": img_roc,
+                "best_pxl_roc": pxl_roc,
+                "best_f1_img": f1_img,
+                "best_f1_pxl": f1_pxl,
+                "best_img_pr": img_pr,
+                "best_pxl_pr": pxl_pr,
+                "best_pxl_pro": pxl_pro
+            })
 
         best_results = TrainerResult(
             img_roc=best_img_roc,

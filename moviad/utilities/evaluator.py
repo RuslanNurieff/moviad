@@ -55,7 +55,7 @@ class Evaluator:
             if anomaly_maps.shape[2:] != masks.shape[2:]:
                 raise Exception(
                     "The output anomaly maps should have the same resolution as the target masks."
-                    + f"Expected shape: {masks.shape[2:]}, got: {anomaly_maps.shape[2:]}"
+                    + f"Expected shape: {masks.shape}, got: {anomaly_maps.shape}"
                 )
 
             # add true masks and img anomaly scores

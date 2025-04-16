@@ -1,113 +1,77 @@
-from tqdm import *
-import copy
+from typing import List
 
-import wandb
+from tqdm import tqdm 
 import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch import Tensor
+from torch import nn
 
-from moviad.models.stfpm.stfpm import STFPM
 from moviad.utilities.evaluator import Evaluator
 from moviad.trainers.trainer import TrainerResult
 
-class TrainerSTFPM:
 
-    """
-    This class contains the code for training the STFPM model
+class FastflowLoss(nn.Module):
+    """FastFlow Loss."""
 
-    Args:
-        stfpm (STFPM): model to be trained
-        train_dataloader (torch.utils.data.DataLoader): train dataloader
-        test_dataloder (torch.utils.data.DataLoader): test dataloader
-        device (str): device to be used for the training
-    """
-
-    def __init__(
-        self,
-        stfpm: STFPM,
-        train_dataloader: torch.utils.data.DataLoader,
-        test_dataloder: torch.utils.data.DataLoader,
-        device: str,
-        logger = None,
-    ):
-        self.stfpm = stfpm
-        self.train_dataloader = train_dataloader
-        self.test_dataloader = test_dataloder
-        self.device = device
-        self.logger = logger
-        self.evaluator = Evaluator(self.test_dataloader, self.device)
-
-
-    def _stfpm_loss(teacher_features, student_features):
-        return torch.sum((teacher_features - student_features) ** 2, 1).mean()
-
-    def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
-        """
-        Train the model
+    def forward(self, hidden_variables: List[Tensor], jacobians: List[Tensor]) -> Tensor:
+        """Calculate the Fastflow loss.
 
         Args:
-            epochs (int) : number of epochs for the training
+            hidden_variables (List[Tensor]): Hidden variables from the fastflow model. f: X -> Z
+            jacobians (List[Tensor]): Log of the jacobian determinants from the fastflow model.
 
+        Returns:
+            Tensor: Fastflow loss computed based on the hidden variables and the log of the Jacobians.
         """
+        loss = torch.tensor(0.0, device=hidden_variables[0].device)  # pylint: disable=not-callable
+        for (hidden_variable, jacobian) in zip(hidden_variables, jacobians):
+            loss += torch.mean(0.5 * torch.sum(hidden_variable**2, dim=(1, 2, 3)) - jacobian)
+        return loss
 
-        self.stfpm.to(self.device)
-        self.stfpm.train()
+class TrainerFastFlow():
+    def __init__(self, model, train_dataloader, test_dataloader, device, logger=None):
+        self.train_dataloader = train_dataloader
+        self.test_dataloader = test_dataloader
+        self.model = model
+        self.device = device
+        self.evaluator = Evaluator(test_dataloader, device)
+        self.logger = logger
+    
+    def train(self, epochs:int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
 
-        learning_rate = 0.4
-        weight_decay = 1e-4
-        momentum = 0.9
-
-        optimizer = torch.optim.SGD(
-            self.stfpm.student.model.parameters(),
-            learning_rate, momentum=momentum, weight_decay=weight_decay
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters()
         )
+        self.loss = FastflowLoss()
 
-
-        best_img_roc = img_roc = 0
-        best_pxl_roc = pxl_roc = 0
-        best_img_f1 = f1_img = 0
-        best_pxl_f1 = f1_pxl = 0
-        best_img_pr = img_pr = 0
-        best_pxl_pr = pxl_pr = 0
-        best_pxl_pro = pxl_pro = 0
+        best_img_roc = 0
+        best_pxl_roc = 0
+        best_img_f1 = 0
+        best_pxl_f1 = 0
+        best_img_pr = 0
+        best_pxl_pr = 0
+        best_pxl_pro = 0
 
         if self.logger is not None:
-            self.logger.config.update(
-                {
-                    "epochs": epochs,
-                    "learning_rate": learning_rate,
-                    "weight_decay": weight_decay,
-                    "optimizer": "SGD",
-                    "momentum": momentum,
-                },
-                allow_val_change=True
-            )
-            self.logger.watch(self.stfpm, log='all', log_freq=10)
+            pass #TODO: add configuration logging
 
-        for epoch in trange(epochs):
+        for epoch in range(epochs):
 
-            self.stfpm.train()
+            self.model.train()
 
-            print(f"EPOCH: {epoch}")
-
-            #train the model
+            avg_batch_loss = 0.0
+            print("Epoch: ", epoch)
             for batch in tqdm(self.train_dataloader):
-
                 batch = batch.to(self.device)
-                teacher_features, student_features = self.stfpm(batch)
+                hidden_variables, jacobians = self.model(batch)
+                loss = self.loss(hidden_variables, jacobians)
 
-                loss = 0
-                for i in range(len(student_features)):
-
-                    teacher_features[i] = F.normalize(teacher_features[i], dim=1)
-                    student_features[i] = F.normalize(student_features[i], dim=1)
-                    loss += TrainerSTFPM._stfpm_loss(teacher_features[i], student_features[i])
-
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
+                avg_batch_loss += loss.item()
+            
+            avg_batch_loss /= len(self.train_dataloader)
 
-            avg_batch_loss = loss / len(self.train_dataloader)
             if self.logger is not None:
                 self.logger.log({
                     "current_epoch" : epoch,
@@ -116,7 +80,7 @@ class TrainerSTFPM:
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:
                 print("Evaluating model...")
-                img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.stfpm)
+                img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.model)
 
                 if self.logger is not None:
                     self.logger.log({
@@ -190,5 +154,8 @@ class TrainerSTFPM:
             pxl_pro=pxl_pro
         )
 
-
         return results, best_results
+
+        
+
+        
