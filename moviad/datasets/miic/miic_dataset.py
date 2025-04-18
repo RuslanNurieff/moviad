@@ -17,15 +17,15 @@ from moviad.utilities.configurations import Split, TaskType, LabelName
 The MIIC dataset when downloaded follows this general structure:
 
 miic_folder
-    |- Anomaly_test 
+    |- Anomaly_test
         |- ..
-    |- Anomaly_train 
-        |- ..   
-    |- Inpainting_test  
+    |- Anomaly_train
         |- ..
-    |- Inpainting_train  
+    |- Inpainting_test
         |- ..
-    |- MANIFEST.TXT  
+    |- Inpainting_train
+        |- ..
+    |- MANIFEST.TXT
     |- readme.txt
 """
 
@@ -72,7 +72,7 @@ class MiicDatasetConfig(IadDatasetConfig):
                  split: Optional[Split] = None, image_shape: Optional[tuple[int, int]] = (256, 256),
                  mask_shape: Optional[tuple[int, int]] = (256, 256), preload_images: bool = False):
         super().__init__(task_type, split, image_shape, mask_shape, preload_images)
-        
+
         # dataset folder path
         self.dataset_path = Path(dataset_path) if dataset_path else None
 
@@ -102,15 +102,18 @@ class MiicDatasetEntry:
 
     def __init__(self, image_path: Path, mask_path: str = None, bounding_box_path: str = None):
         image_file_name = image_path.name
-        image_file_name_split = image_file_name.split('_')
         self.image_path = image_path
+
+        image_file_name_split = image_file_name.split('_')
         self.split = Split(image_file_name_split[0])
         self.class_name = MiicDatasetClassEnum(image_file_name_split[1])
+
         self.image_id = int(image_file_name_split[2].split('.')[0])
         self.mask_path = mask_path
         self.bounding_box_path = bounding_box_path
-        self.normal_images_entries = []
-        self.abnormal_images_entries = []
+
+        self.image = None
+        self.mask = None
 
 
 class MiicDataset(IadDataset):
@@ -127,9 +130,6 @@ class MiicDataset(IadDataset):
         self.transform_img = transforms.Compose([
             transforms.ToTensor(),
             transforms.Resize(self.config.image_shape, antialias=True),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-            ),
         ])
 
         self.transform_mask = transforms.Compose([
@@ -164,7 +164,7 @@ class MiicDataset(IadDataset):
         if self.split == Split.TRAIN:
             return image
 
-        label = LabelName.NORMAL.value if image_entry.class_name == MiicDatasetClassEnum.NORMAL else LabelName.ABNORMAL.value
+        label = LabelName.NORMAL.value if image_entry.class_name.value == MiicDatasetClassEnum.NORMAL.value else LabelName.ABNORMAL.value
         mask_path = image_entry.mask_path
         path = str(image_entry.image_path)
         if mask_path is not None:
@@ -181,18 +181,22 @@ class MiicDataset(IadDataset):
         if self.split == Split.TRAIN:
             self.__load_training_data(self.config.training_root_path)
         elif self.split == Split.TEST:
-            self.__load_test_data(self.config.test_abnormal_image_root_path,
-                                self.config.test_normal_image_root_path,
-                                self.config.test_abnormal_mask_root_path,
-                                self.config.test_abnormal_bounding_box_root_path)
+            self.__load_test_data(
+                self.config.test_normal_image_root_path,
+                self.config.test_abnormal_image_root_path,
+                self.config.test_abnormal_mask_root_path,
+                self.config.test_abnormal_bounding_box_root_path
+            )
 
     def __load_training_data(self, normal_images_root_path: Path):
+
+        # load only the normal images for training
         assert normal_images_root_path.exists(), f"Normal images root path {normal_images_root_path} does not exist"
-        image_file_list = list(normal_images_root_path.glob('**/*.jpg'))
-        
+        image_file_list = list(normal_images_root_path.glob('**/*train_normal_*.jpg'))
+
         if image_file_list is None or len(image_file_list) == 0:
             raise FileNotFoundError(f"No images found in {normal_images_root_path}")
-        
+
         for image in image_file_list:
             image_entry = MiicDatasetEntry(image)
             if self.preload_images:
@@ -210,10 +214,10 @@ class MiicDataset(IadDataset):
         assert mask_root_path.exists(), f"Mask root path {mask_root_path} does not exist"
         assert bounding_box_root_path.exists(), f"Bounding box root path {bounding_box_root_path} does not exist"
 
-        normal_image_file_list = list(normal_images_root_path.glob('**/*.jpg'))
-        abnormal_image_file_list = list(abnormal_image_root_path.glob('**/*.jpg'))
-        mask_file_list = list(mask_root_path.glob('**/*.jpg'))
-        bounding_box_file_list = list(bounding_box_root_path.glob('**/*.jpg'))
+        normal_image_file_list   = list(normal_images_root_path.glob('**/*.jpg'))
+        abnormal_image_file_list = sorted(list(abnormal_image_root_path.glob('**/*.jpg')), key = lambda x: x)
+        mask_file_list           = sorted(list(mask_root_path.glob('**/*.jpg')), key = lambda x: x)
+        bounding_box_file_list   = sorted(list(bounding_box_root_path.glob('**/*.jpg')), key = lambda x: x)
 
         if normal_image_file_list is None or len(normal_image_file_list) == 0:
             raise FileNotFoundError(f"No images found in {normal_images_root_path}")
@@ -221,7 +225,7 @@ class MiicDataset(IadDataset):
             raise FileNotFoundError(f"No images found in {abnormal_image_root_path}")
         if mask_file_list is None or len(mask_file_list) == 0:
             raise FileNotFoundError(f"No images found in {mask_root_path}")
-        
+
         for image in normal_image_file_list:
             image_entry = MiicDatasetEntry(image)
             if self.preload_images:
@@ -233,7 +237,7 @@ class MiicDataset(IadDataset):
             abnormal_image_path, mask_path, bounding_box_path = item
             image_entry = MiicDatasetEntry(abnormal_image_path, mask_path, bounding_box_path)
             if self.preload_images:
-                with PIL.Image.open(image_entry.image_path) as img:
+                with PIL.Image.open(abnormal_image_path) as img:
                     image_entry.image = img.convert("RGB")
                 with PIL.Image.open(mask_path) as mask:
                     image_entry.mask = mask.convert("L")

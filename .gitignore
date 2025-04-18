@@ -197,3 +197,5 @@ benchmark/config.json
 benchmark/padim.json
 benchmark/patchcore.json
 benchmark/stfpm.json
+
+/wandb
