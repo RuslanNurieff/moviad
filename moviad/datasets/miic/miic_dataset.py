@@ -70,8 +70,10 @@ class MiicDatasetConfig(IadDatasetConfig):
 
     def __init__(self, dataset_path: Optional[Path] = None, task_type: Optional[TaskType] = None,
                  split: Optional[Split] = None, image_shape: Optional[tuple[int, int]] = (256, 256),
-                 mask_shape: Optional[tuple[int, int]] = (256, 256), preload_images: bool = False):
+                 mask_shape: Optional[tuple[int, int]] = (256, 256), normalize:bool = False,  preload_images: bool = False):
         super().__init__(task_type, split, image_shape, mask_shape, preload_images)
+
+        self.norm = normalize
 
         # dataset folder path
         self.dataset_path = Path(dataset_path) if dataset_path else None
@@ -127,10 +129,19 @@ class MiicDataset(IadDataset):
         self.preload_images = self.config.preload_images
         self.category = 'semiconductor'
 
-        self.transform_img = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize(self.config.image_shape, antialias=True),
-        ])
+        if self.config.norm:
+            self.transform_img = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Resize(self.config.image_shape, antialias=True),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                )
+            ])
+        else:
+            self.transform_img = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Resize(self.config.image_shape, antialias=True),
+            ])
 
         self.transform_mask = transforms.Compose([
             transforms.ToTensor(),

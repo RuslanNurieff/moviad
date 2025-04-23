@@ -8,70 +8,40 @@ from torch.utils.data import DataLoader
 
 from moviad.models.stfpm.stfpm import STFPM
 from moviad.utilities.evaluator import Evaluator
-from moviad.trainers.trainer import TrainerResult
+from moviad.trainers.trainer import TrainerResult, Trainer
 
-class TrainerSTFPM:
+class TrainerSTFPM(Trainer):
 
     """
     This class contains the code for training the STFPM model
-
-    Args:
-        stfpm (STFPM): model to be trained
-        train_dataloader (torch.utils.data.DataLoader): train dataloader
-        test_dataloder (torch.utils.data.DataLoader): test dataloader
-        device (str): device to be used for the training
     """
 
-    def __init__(
-        self,
-        stfpm: STFPM,
-        train_dataloader: torch.utils.data.DataLoader,
-        test_dataloder: torch.utils.data.DataLoader,
-        device: str,
-        logger = None,
-    ):
-        self.stfpm = stfpm
-        self.train_dataloader = train_dataloader
-        self.test_dataloader = test_dataloder
-        self.device = device
-        self.logger = logger
-        self.evaluator = Evaluator(self.test_dataloader, self.device)
-
-
-    def _stfpm_loss(teacher_features, student_features):
+    @staticmethod
+    def stfpm_loss(teacher_features, student_features):
         return torch.sum((teacher_features - student_features) ** 2, 1).mean()
 
     def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
-        """
-        Train the model
-
-        Args:
-            epochs (int) : number of epochs for the training
-
-        """
-
-        self.stfpm.to(self.device)
-        self.stfpm.train()
 
         learning_rate = 0.4
         weight_decay = 1e-4
         momentum = 0.9
 
         optimizer = torch.optim.SGD(
-            self.stfpm.student.model.parameters(),
+            self.model.student.model.parameters(),
             learning_rate, momentum=momentum, weight_decay=weight_decay
         )
 
+        best_metrics = {}
+        best_metrics["img_roc_auc"] = 0
+        best_metrics["pxl_roc_auc"] = 0
+        best_metrics["img_f1"] = 0
+        best_metrics["pxl_f1"] = 0
+        best_metrics["img_pr_auc"] = 0
+        best_metrics["pxl_pr_auc"] = 0
+        best_metrics["pxl_au_pro"] = 0
 
-        best_img_roc = img_roc = 0
-        best_pxl_roc = pxl_roc = 0
-        best_img_f1 = f1_img = 0
-        best_pxl_f1 = f1_pxl = 0
-        best_img_pr = img_pr = 0
-        best_pxl_pr = pxl_pr = 0
-        best_pxl_pro = pxl_pro = 0
-
-        if self.logger is not None:
+        # log the training configurations
+        if self.logger:
             self.logger.config.update(
                 {
                     "epochs": epochs,
@@ -82,33 +52,35 @@ class TrainerSTFPM:
                 },
                 allow_val_change=True
             )
-            self.logger.watch(self.stfpm, log='all', log_freq=10)
+            self.logger.watch(self.model, log='all', log_freq=10)
 
         for epoch in trange(epochs):
 
-            self.stfpm.train()
+            self.model.train()
 
             print(f"EPOCH: {epoch}")
 
+            avg_batch_loss = 0
             #train the model
             for batch in tqdm(self.train_dataloader):
 
                 batch = batch.to(self.device)
-                teacher_features, student_features = self.stfpm(batch)
+                teacher_features, student_features = self.model(batch)
 
-                loss = 0
                 for i in range(len(student_features)):
 
                     teacher_features[i] = F.normalize(teacher_features[i], dim=1)
                     student_features[i] = F.normalize(student_features[i], dim=1)
-                    loss += TrainerSTFPM._stfpm_loss(teacher_features[i], student_features[i])
+                    loss = TrainerSTFPM.stfpm_loss(teacher_features[i], student_features[i])
+
+                avg_batch_loss += loss.item()
 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-            avg_batch_loss = loss / len(self.train_dataloader)
-            if self.logger is not None:
+            avg_batch_loss /= len(self.train_dataloader)
+            if self.logger:
                 self.logger.log({
                     "current_epoch" : epoch,
                     "avg_batch_loss": avg_batch_loss
@@ -116,78 +88,36 @@ class TrainerSTFPM:
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:
                 print("Evaluating model...")
-                img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.stfpm)
+                metrics = self.evaluator.evaluate(self.model)
+                
+                if self.saving_criteria(best_metrics, metrics) and self.save_path is not None: 
+                    print("Saving model...")
+                    torch.save(self.model.state_dict(), self.save_path)
+                    print(f"Model saved to {self.save_path}")
+                
+                # update the best metrics
+                best_metrics = Trainer.update_best_metrics(best_metrics, metrics)
+            
+                print("Trainer training performances:")
+                Trainer.print_metrics(metrics)
 
                 if self.logger is not None:
-                    self.logger.log({
-                        "img_roc": img_roc,
-                        "pxl_roc": pxl_roc,
-                        "f1_img": f1_img,
-                        "f1_pxl": f1_pxl,
-                        "img_pr": img_pr,
-                        "pxl_pr": pxl_pr,
-                        "pxl_pro": pxl_pro
-                    })
-
-                best_img_roc = img_roc if img_roc > best_img_roc else best_img_roc
-                best_pxl_roc = pxl_roc if pxl_roc > best_pxl_roc else best_pxl_roc
-                best_img_f1 = f1_img if f1_img > best_img_f1 else best_img_f1
-                best_pxl_f1 = f1_pxl if f1_pxl > best_pxl_f1 else best_pxl_f1
-                best_img_pr = img_pr if img_pr > best_img_pr else best_img_pr
-                best_pxl_pr = pxl_pr if pxl_pr > best_pxl_pr else best_pxl_pr
-                best_pxl_pro = pxl_pro if pxl_pro > best_pxl_pro else best_pxl_pro
-
-                print("Mid training performances:")
-                print(f"""
-                    img_roc: {img_roc} \n
-                    pxl_roc: {pxl_roc} \n
-                    f1_img: {f1_img} \n
-                    f1_pxl: {f1_pxl} \n
-                    img_pr: {img_pr} \n
-                    pxl_pr: {pxl_pr} \n
-                    pxl_pro: {pxl_pro} \n
-                """)
+                    self.logger.log(best_metrics)
 
         print("Best training performances:")
-        print(f"""
-                img_roc: {best_img_roc} \n
-                pxl_roc: {best_pxl_roc} \n
-                f1_img: {best_img_f1} \n
-                f1_pxl: {best_pxl_f1} \n
-                img_pr: {best_img_pr} \n
-                pxl_pr: {best_pxl_pr} \n
-                pxl_pro: {best_pxl_pro} \n
-        """)
+        Trainer.print_metrics(best_metrics)
 
         if self.logger is not None:
-            self.logger.log({
-                "best_img_roc": img_roc,
-                "best_pxl_roc": pxl_roc,
-                "best_f1_img": f1_img,
-                "best_f1_pxl": f1_pxl,
-                "best_img_pr": img_pr,
-                "best_pxl_pr": pxl_pr,
-                "best_pxl_pro": pxl_pro
-            })
+            self.logger.log(
+                best_metrics
+            )
 
         best_results = TrainerResult(
-            img_roc=best_img_roc,
-            pxl_roc=best_pxl_roc,
-            f1_img=best_img_f1,
-            f1_pxl=best_pxl_f1,
-            img_pr=best_img_pr,
-            pxl_pr=best_pxl_pr,
-            pxl_pro=best_pxl_pro
+            **best_metrics
         )
 
         results = TrainerResult(
-            img_roc=img_roc,
-            pxl_roc=pxl_roc,
-            f1_img=f1_img,
-            f1_pxl=f1_pxl,
-            img_pr=img_pr,
-            pxl_pr=pxl_pr,
-            pxl_pro=pxl_pro
+            **metrics
         )
 
 

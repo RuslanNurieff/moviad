@@ -6,13 +6,17 @@ from torch import Tensor
 from torch import nn
 
 from moviad.utilities.evaluator import Evaluator
-from moviad.trainers.trainer import TrainerResult
+from moviad.trainers.trainer import TrainerResult, Trainer
 
 
-class FastflowLoss(nn.Module):
-    """FastFlow Loss."""
+class TrainerFastFlow(Trainer):
 
-    def forward(self, hidden_variables: List[Tensor], jacobians: List[Tensor]) -> Tensor:
+    """
+    This class contains the code for training the FastFlow model
+    """
+
+    @staticmethod
+    def fastflow_loss(hidden_variables: List[Tensor], jacobians: List[Tensor]) -> Tensor:
         """Calculate the Fastflow loss.
 
         Args:
@@ -26,30 +30,22 @@ class FastflowLoss(nn.Module):
         for (hidden_variable, jacobian) in zip(hidden_variables, jacobians):
             loss += torch.mean(0.5 * torch.sum(hidden_variable**2, dim=(1, 2, 3)) - jacobian)
         return loss
-
-class TrainerFastFlow():
-    def __init__(self, model, train_dataloader, test_dataloader, device, logger=None):
-        self.train_dataloader = train_dataloader
-        self.test_dataloader = test_dataloader
-        self.model = model
-        self.device = device
-        self.evaluator = Evaluator(test_dataloader, device)
-        self.logger = logger
     
     def train(self, epochs:int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
 
         self.optimizer = torch.optim.Adam(
             self.model.parameters()
         )
-        self.loss = FastflowLoss()
 
-        best_img_roc = 0
-        best_pxl_roc = 0
-        best_img_f1 = 0
-        best_pxl_f1 = 0
-        best_img_pr = 0
-        best_pxl_pr = 0
-        best_pxl_pro = 0
+        best_metrics = {}
+        best_metrics["img_roc_auc"] = 0
+        best_metrics["pxl_roc_auc"] = 0
+        best_metrics["img_f1"] = 0
+        best_metrics["pxl_f1"] = 0
+        best_metrics["img_pr_auc"] = 0
+        best_metrics["pxl_pr_auc"] = 0
+        best_metrics["pxl_au_pro"] = 0
+
 
         if self.logger is not None:
             pass #TODO: add configuration logging
@@ -63,7 +59,7 @@ class TrainerFastFlow():
             for batch in tqdm(self.train_dataloader):
                 batch = batch.to(self.device)
                 hidden_variables, jacobians = self.model(batch)
-                loss = self.loss(hidden_variables, jacobians)
+                loss = TrainerFastFlow.fastflow_loss(hidden_variables, jacobians)
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -80,79 +76,38 @@ class TrainerFastFlow():
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:
                 print("Evaluating model...")
-                img_roc, pxl_roc, f1_img, f1_pxl, img_pr, pxl_pr, pxl_pro = self.evaluator.evaluate(self.model)
+                metrics = self.evaluator.evaluate(self.model)
+                
+                if self.saving_criteria(best_metrics, metrics) and self.save_path is not None: 
+                    print("Saving model...")
+                    torch.save(self.model.state_dict(), self.save_path)
+                    print(f"Model saved to {self.save_path}")
+                
+                # update the best metrics
+                best_metrics = Trainer.update_best_metrics(best_metrics, metrics)
+            
+                print("Trainer training performances:")
+                Trainer.print_metrics(metrics)
 
                 if self.logger is not None:
-                    self.logger.log({
-                        "img_roc": img_roc,
-                        "pxl_roc": pxl_roc,
-                        "f1_img": f1_img,
-                        "f1_pxl": f1_pxl,
-                        "img_pr": img_pr,
-                        "pxl_pr": pxl_pr,
-                        "pxl_pro": pxl_pro
-                    })
-
-                best_img_roc = img_roc if img_roc > best_img_roc else best_img_roc
-                best_pxl_roc = pxl_roc if pxl_roc > best_pxl_roc else best_pxl_roc
-                best_img_f1 = f1_img if f1_img > best_img_f1 else best_img_f1
-                best_pxl_f1 = f1_pxl if f1_pxl > best_pxl_f1 else best_pxl_f1
-                best_img_pr = img_pr if img_pr > best_img_pr else best_img_pr
-                best_pxl_pr = pxl_pr if pxl_pr > best_pxl_pr else best_pxl_pr
-                best_pxl_pro = pxl_pro if pxl_pro > best_pxl_pro else best_pxl_pro
-
-                print("Mid training performances:")
-                print(f"""
-                    img_roc: {img_roc} \n
-                    pxl_roc: {pxl_roc} \n
-                    f1_img: {f1_img} \n
-                    f1_pxl: {f1_pxl} \n
-                    img_pr: {img_pr} \n
-                    pxl_pr: {pxl_pr} \n
-                    pxl_pro: {pxl_pro} \n
-                """)
+                    self.logger.log(best_metrics)
 
         print("Best training performances:")
-        print(f"""
-                img_roc: {best_img_roc} \n
-                pxl_roc: {best_pxl_roc} \n
-                f1_img: {best_img_f1} \n
-                f1_pxl: {best_pxl_f1} \n
-                img_pr: {best_img_pr} \n
-                pxl_pr: {best_pxl_pr} \n
-                pxl_pro: {best_pxl_pro} \n
-        """)
+        Trainer.print_metrics(best_metrics)
 
         if self.logger is not None:
-            self.logger.log({
-                "best_img_roc": img_roc,
-                "best_pxl_roc": pxl_roc,
-                "best_f1_img": f1_img,
-                "best_f1_pxl": f1_pxl,
-                "best_img_pr": img_pr,
-                "best_pxl_pr": pxl_pr,
-                "best_pxl_pro": pxl_pro
-            })
+            self.logger.log(
+                best_metrics
+            )
 
         best_results = TrainerResult(
-            img_roc=best_img_roc,
-            pxl_roc=best_pxl_roc,
-            f1_img=best_img_f1,
-            f1_pxl=best_pxl_f1,
-            img_pr=best_img_pr,
-            pxl_pr=best_pxl_pr,
-            pxl_pro=best_pxl_pro
+            **best_metrics
         )
 
         results = TrainerResult(
-            img_roc=img_roc,
-            pxl_roc=pxl_roc,
-            f1_img=f1_img,
-            f1_pxl=f1_pxl,
-            img_pr=img_pr,
-            pxl_pr=pxl_pr,
-            pxl_pro=pxl_pro
+            **metrics
         )
+
 
         return results, best_results
 

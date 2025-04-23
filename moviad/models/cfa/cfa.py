@@ -180,7 +180,7 @@ class CFA(nn.Module):
 
             if not self.Descriptor: 
                 self.feature_maps_channels = nn.Parameter(sum(tensor.size(1) for tensor in p) * torch.ones(1), requires_grad = False)     
-                self.Descriptor = Descriptor(self.gamma_d, int(self.feature_maps_channels.item()), self.backbone).to(self.device)
+                self.Descriptor = Descriptor(self.gamma_d, int(self.feature_maps_channels.item()), self.backbone, self.device).to(self.device)
 
             self.scale = p[0].size(2)
             phi_p = self.Descriptor(p)
