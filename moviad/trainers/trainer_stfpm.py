@@ -22,13 +22,11 @@ class TrainerSTFPM(Trainer):
 
     def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
 
-        learning_rate = 0.4
-        weight_decay = 1e-4
-        momentum = 0.9
-
         optimizer = torch.optim.SGD(
             self.model.student.model.parameters(),
-            learning_rate, momentum=momentum, weight_decay=weight_decay
+            STFPM.DEFAULT_PARAMETERS["learning_rate"], 
+            momentum=STFPM.DEFAULT_PARAMETERS["momentum"], 
+            weight_decay=STFPM.DEFAULT_PARAMETERS["weight_decay"]
         )
 
         best_metrics = {}
@@ -45,10 +43,10 @@ class TrainerSTFPM(Trainer):
             self.logger.config.update(
                 {
                     "epochs": epochs,
-                    "learning_rate": learning_rate,
-                    "weight_decay": weight_decay,
+                    "learning_rate": STFPM.DEFAULT_PARAMETERS["learning_rate"],
+                    "weight_decay":STFPM.DEFAULT_PARAMETERS["weight_decay"],
                     "optimizer": "SGD",
-                    "momentum": momentum,
+                    "momentum": STFPM.DEFAULT_PARAMETERS["momentum"],
                 },
                 allow_val_change=True
             )

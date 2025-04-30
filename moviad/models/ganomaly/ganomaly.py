@@ -364,9 +364,9 @@ class Generator(nn.Module):
     def __init__(
         self,
         input_size: tuple[int, int],
-        latent_vec_size: int,
-        num_input_channels: int,
-        n_features: int,
+        latent_vec_size: int = 100,
+        num_input_channels: int = 3,
+        n_features: int = 64,
         extra_layers: int = 0,
         add_final_conv_layer: bool = True,
     ) -> None:
@@ -407,7 +407,7 @@ class Generator(nn.Module):
         return gen_image, latent_i, latent_o
 
 
-class GanomalyModel(nn.Module):
+class Ganomaly(nn.Module):
     """GANomaly model for anomaly detection.
 
     Complete model combining Generator and Discriminator networks.
@@ -522,10 +522,10 @@ class GanomalyModel(nn.Module):
             If inference:
                 - Batch containing anomaly scores
         """
-        padded_batch = GanomalyModel.pad_nextpow2(batch)
+        padded_batch = Ganomaly.pad_nextpow2(batch)
         fake, latent_i, latent_o = self.generator(padded_batch)
         if self.training:
             return padded_batch, fake, latent_i, latent_o
         scores = torch.mean(torch.pow((latent_i - latent_o), 2), dim=1).view(-1)  # convert nx1x1 to n
-        anomaly_maps = torch.mean(torch.pow((padded_batch - fake), 2), dim=1)
+        anomaly_maps = torch.mean(torch.pow((padded_batch - fake), 2), dim=1).unsqueeze(1)
         return anomaly_maps, scores

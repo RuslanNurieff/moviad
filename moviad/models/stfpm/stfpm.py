@@ -6,6 +6,14 @@ from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtra
 
 class STFPM(torch.nn.Module):
 
+    DEFAULT_PARAMETERS = {
+        "epochs": 100,
+        "batch_size": 32,
+        "learning_rate": 0.4,
+        "weight_decay": 1e-4,
+        "momentum": 0.9,
+    }
+
     def __init__ (
         self,
         teacher:CustomFeatureExtractor,

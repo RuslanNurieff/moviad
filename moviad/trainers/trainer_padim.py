@@ -6,7 +6,7 @@ from moviad.models.padim.padim import Padim
 from moviad.trainers.trainer import Trainer, TrainerResult
 
 
-class PadimTrainer(Trainer):
+class TrainerPadim(Trainer):
 
     def __init__(
         self, 

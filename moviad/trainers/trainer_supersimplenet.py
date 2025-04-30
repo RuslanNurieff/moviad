@@ -4,11 +4,11 @@ from torch.optim.lr_scheduler import MultiStepLR
 
 from moviad.trainers.trainer import Trainer, TrainerResult
 from moviad.models.components.simplenet.loss import SSNLoss
+from moviad.models.supersimplenet.supersimplenet import SuperSimpleNet 
 
 from tqdm import tqdm
 
 class TrainerSuperSimpleNet(Trainer):
-
 
 
     def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
@@ -17,20 +17,21 @@ class TrainerSuperSimpleNet(Trainer):
             [
                 {
                     "params": self.model.adaptor.parameters(),
-                    "lr": 0.0001,
+                    "lr": SuperSimpleNet.DEFAULT_PARAMETERS["adaptor_learning_rate"],
+                    "weight_decay": SuperSimpleNet.DEFAULT_PARAMETERS["adaptor_weight_decay"],
                 },
                 {
                     "params": self.model.segdec.parameters(),
-                    "lr": 0.0002,
-                    "weight_decay": 0.00001,
+                    "lr": SuperSimpleNet.DEFAULT_PARAMETERS["segdec_learning_rate"],
+                    "weight_decay": SuperSimpleNet.DEFAULT_PARAMETERS["segdec_weight_decay"],
                 },
             ],
         )
 
         scheduler = MultiStepLR(
             optimizer,
-            milestones=[int(epochs * 0.8), int(epochs * 0.9)],
-            gamma=0.4,
+            milestones=SuperSimpleNet.DEFAULT_PARAMETERS["milestones_scheduler"],
+            gamma=SuperSimpleNet.DEFAULT_PARAMETERS["gamma_scheduler"],
         )
 
         loss_fn = SSNLoss()
@@ -44,6 +45,8 @@ class TrainerSuperSimpleNet(Trainer):
         best_metrics["pxl_au_pro"] = 0
 
         for epoch in range(epochs):
+            
+            print(f"EPOCH: {epoch}")
 
             self.model.train()
 

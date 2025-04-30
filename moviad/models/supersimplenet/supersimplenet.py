@@ -26,7 +26,24 @@ from moviad.models.components.simplenet.anomaly_generator import AnomalyGenerato
 from moviad.models.components.simplenet.feature_extractor import UpscalingFeatureExtractor
 from moviad.models.components.blur import GaussianBlur
 
-class SimpleNetModel(nn.Module):
+class SuperSimpleNet(nn.Module):
+
+    DEFAULT_PARAMETERS = {
+        "epochs": 300,
+        "batch_size": 32,
+        "adaptor_learning_rate": 10e-4,
+        "segdec_learning_rate": 2*10e-4,
+        "adaptor_weight_decay": 10e-5,
+        "segdec_weight_decay": 10e-5,
+        "gamma_scheduler": 0.4,
+        "milestones_scheduler": [int(300 * 0.8), int(300 * 0.9)],
+        "gaussian_noise_mean" : 0,
+        "gaussian_noise_std" : 0.015,
+        "perlin_threshold": 0.2, # for mvtec, for visa is 0.6
+        "image_shape" : (256, 256),
+        "stop_grad": True,
+    }
+
     """SuperSimpleNet Pytorch model.
 
     It consists of feature extractor, feature adaptor, anomaly generation mechanism and segmentation-detection module.
@@ -41,8 +58,8 @@ class SimpleNetModel(nn.Module):
     def __init__(
         self,
         feature_extractor,
-        perlin_threshold: float = 0.2,
-        stop_grad: bool = True,
+        perlin_threshold: float = DEFAULT_PARAMETERS["perlin_threshold"],
+        stop_grad: bool = DEFAULT_PARAMETERS["stop_grad"],
     ) -> None:
         super().__init__()
 
@@ -60,7 +77,11 @@ class SimpleNetModel(nn.Module):
         self.adaptor.apply(init_weights)
 
         self.segdec = Discriminator(channel_dim=channels, stop_grad=stop_grad)
-        self.anomaly_generator = AnomalyGenerator(noise_mean=0, noise_std=0.015, threshold=perlin_threshold)
+        self.anomaly_generator = AnomalyGenerator(
+            noise_mean=self.DEFAULT_PARAMETERS["gaussian_noise_mean"], 
+            noise_std=self.DEFAULT_PARAMETERS["gaussian_noise_std"], 
+            threshold=self.DEFAULT_PARAMETERS["perlin_threshold"]
+        )
 
         self.anomaly_map_generator = AnomalyMapGenerator(sigma=4)
 
@@ -134,6 +155,14 @@ class SimpleNetModel(nn.Module):
             torch.zeros_like(masks),
             torch.ones_like(masks),
         )
+
+    @staticmethod
+    def get_argpars_parameters(parser):
+        parser.add_argument("--backbone", type=str, default="wide_resnet50_2", help="Backbone name")
+        parser.add_argument("--ad_layers", type=str, nargs="+", help="List of ad layers")
+        parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
+        parser.add_argument("--device", type=str, help="Where to run the model")
+        return parser
 
 
 def init_weights(module: nn.Module) -> None:

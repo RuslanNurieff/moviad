@@ -29,6 +29,7 @@ class TrainerPatchCore(Trainer):
         test_dataloder: torch.utils.data.DataLoader,
         device: str,
         coreset_extractor: CoresetExtractor = None,
+        save_path=None,
         logger=None,
     ):
         super().__init__(
@@ -36,7 +37,8 @@ class TrainerPatchCore(Trainer):
             train_dataloader, 
             test_dataloder, 
             device, 
-            logger
+            logger,
+            save_path,
         )
         self.coreset_extractor = coreset_extractor
 
@@ -90,6 +92,13 @@ class TrainerPatchCore(Trainer):
                 coreset = self.model.product_quantizer.encode(coreset)
 
             self.model.memory_bank = coreset
+
+            if self.save_path:
+                self.model.save_model(save_path=self.save_path)
+
+            gpu_device = torch.device("cuda:0")
+            self.model.to(gpu_device)   
+            self.evaluator.device = gpu_device
 
             metrics = self.evaluator.evaluate(self.model)
 

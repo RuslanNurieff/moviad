@@ -69,8 +69,8 @@ class MiicDatasetConfig(IadDatasetConfig):
     """
 
     def __init__(self, dataset_path: Optional[Path] = None, task_type: Optional[TaskType] = None,
-                 split: Optional[Split] = None, image_shape: Optional[tuple[int, int]] = (256, 256),
-                 mask_shape: Optional[tuple[int, int]] = (256, 256), normalize:bool = False,  preload_images: bool = False):
+                 split: Optional[Split] = None, image_shape: Optional[tuple[int, int]] = (224,224),
+                 mask_shape: Optional[tuple[int, int]] = (224, 224), normalize:bool = False,  preload_images: bool = False):
         super().__init__(task_type, split, image_shape, mask_shape, preload_images)
 
         self.norm = normalize
@@ -265,3 +265,7 @@ class MiicDataset(IadDataset):
             float: The contamination ratio.
         """
         raise NotImplementedError("Dataset contamination not yet supported on this dataset.")
+
+        
+        
+        

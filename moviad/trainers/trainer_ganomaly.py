@@ -14,8 +14,8 @@ class TrainerGanomaly(Trainer):
     def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
 
         learning_rate = 0.0002
-        beta1 = 0.5,
-        beta2 = 0.999,
+        beta1 = 0.5
+        beta2 = 0.999
 
         d_opt = Adam(
             self.model.discriminator.parameters(),
@@ -24,12 +24,12 @@ class TrainerGanomaly(Trainer):
         )
         g_opt = Adam(
             self.model.generator.parameters(),
-            lr=self.learning_rate,
+            lr=learning_rate,
             betas=(beta1, beta2),
         )
 
-        g_loss = GeneratorLoss()
-        d_loss = DiscriminatorLoss()
+        g_loss_fn = GeneratorLoss()
+        d_loss_fn = DiscriminatorLoss()
 
 
         best_metrics = {}
@@ -43,36 +43,43 @@ class TrainerGanomaly(Trainer):
 
         for epoch in range(epochs):
 
+            print(f"EPOCH: {epoch}")
+
             self.model.train()
 
-            avg_batch_loss = 0
+            avg_g_loss = 0
+            avg_d_loss = 0
             for batch in tqdm(self.train_dataloader):
 
                 # forward pass
-                padded, fake, latent_i, latent_o = self.model(batch.image)
+                padded, fake, latent_i, latent_o = self.model(batch.to(self.device))
                 pred_real, _ = self.model.discriminator(padded)
 
                 # generator update
                 pred_fake, _ = self.model.discriminator(fake)
-                g_loss = g_loss(latent_i, latent_o, padded, fake, pred_real, pred_fake)
+                g_loss = g_loss_fn(latent_i, latent_o, padded, fake, pred_real, pred_fake)
 
                 g_opt.zero_grad()
                 g_loss.backward(retain_graph=True)
                 g_opt.step()
+                avg_g_loss += g_loss.item()
 
                 # discrimator update
                 pred_fake, _ = self.model.discriminator(fake.detach())
-                d_loss = d_loss(pred_real, pred_fake)
+                d_loss = d_loss_fn(pred_real, pred_fake)
 
                 d_opt.zero_grad()
                 d_loss.backward(retain_graph=True)
                 d_opt.step()
+                avg_d_loss += d_loss.item()
 
-            avg_batch_loss = avg_batch_loss / len(self.train_dataloader)
+            avg_g_loss /= len(self.train_dataloader)
+            avg_d_loss /= len(self.train_dataloader)
             if self.logger is not None:
                 self.logger.log({
                     "current_epoch" : epoch,
-                    "avg_batch_loss": avg_batch_loss
+                    "avg_batch_discriminator_loss": avg_d_loss,
+                    "avg_batch_generator_loss": avg_g_loss,
                 })
 
             if (epoch + 1) % evaluation_epoch_interval == 0 and epoch != 0:

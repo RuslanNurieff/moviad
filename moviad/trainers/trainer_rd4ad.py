@@ -34,13 +34,10 @@ class TrainerRD4AD(Trainer):
 
         self.model.train()
 
-        learning_rate = 0.005
-        betas=(0.5,0.999)
-
         optimizer = torch.optim.Adam(
             list(self.model.decoder.parameters())+list(self.model.bn.parameters()),
-            lr=learning_rate,
-            betas=betas,
+            lr=RD4AD.DEFAULT_PARAMETERS["learning_rate"],
+            betas=RD4AD.DEFAULT_PARAMETERS["betas"],
         )
 
         best_metrics = {}
@@ -55,7 +52,7 @@ class TrainerRD4AD(Trainer):
         if self.logger:
             self.logger.config.update(
                 {
-                    "learning_rate": learning_rate,
+                    "learning_rate": RD4AD.DEFAULT_PARAMETERS["learning_rate"],
                     "optimizer": "Adam"
                 },
                 allow_val_change=True
