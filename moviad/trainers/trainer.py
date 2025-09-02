@@ -1,5 +1,5 @@
 import torch
-
+from typing import Any, Callable
 from moviad.utilities.evaluator import Evaluator
 
 
@@ -11,9 +11,9 @@ class Trainer:
         train_dataloader: torch.utils.data.DataLoader,
         eval_dataloader: torch.utils.data.DataLoader,
         device: torch.device,
-        logger: any,
+        logger: Any | None = None,
         save_path: str = None,
-        saving_criteria: callable = None,
+        saving_criteria: Callable = None,
     ):
         self.model = model
         self.train_dataloader = train_dataloader

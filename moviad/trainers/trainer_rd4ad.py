@@ -93,7 +93,7 @@ class TrainerRD4AD(Trainer):
                 print("Evaluating model...")
                 metrics = self.evaluator.evaluate(self.model)
                 
-                if self.saving_criteria(best_metrics, metrics) and self.save_path is not None: 
+                if self.saving_criteria and self.save_path is not None: 
                     print("Saving model...")
                     torch.save(self.model.state_dict(), self.save_path)
                     print(f"Model saved to {self.save_path}")

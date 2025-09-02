@@ -41,8 +41,9 @@ def train_fastflow(dataset_path: str, category: str, backbone: str, save_path: s
     trainer = TrainerFastFlow(
         model=model,
         train_dataloader=train_dataloader,
-        test_dataloader=test_dataloader,
+        eval_dataloader=test_dataloader,
         device=device,
+        logger=None
     )
     trainer.train(epochs)
 
