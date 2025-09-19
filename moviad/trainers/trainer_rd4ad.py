@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Tuple
 import os
 
 from tqdm import *
@@ -30,7 +30,7 @@ class TrainerRD4AD(Trainer):
         return loss
 
 
-    def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
+    def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> Tuple[TrainerResult, TrainerResult]:
 
         self.model.train()
 

@@ -35,10 +35,10 @@ class BMAD(IadDataset):
     _CATEGORIES_WITH_MASK = {
         "Brain_AD": True,
         "Liver_AD": True,
+        "RetinaRESC_AD": True,
         "RetinaOCT2017_AD": False,
         "Histopathology_AD": False,
         "Chest_AD": False,
-        "RetinaRESC_AD": True,
     }
 
     def __init__(

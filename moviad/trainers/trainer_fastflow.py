@@ -67,6 +67,7 @@ class TrainerFastFlow(Trainer):
                 avg_batch_loss += loss.item()
             
             avg_batch_loss /= len(self.train_dataloader)
+            print(f"Average batch loss: {avg_batch_loss}")
 
             if self.logger is not None:
                 self.logger.log({
