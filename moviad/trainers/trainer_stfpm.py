@@ -20,7 +20,7 @@ class TrainerSTFPM(Trainer):
     def stfpm_loss(teacher_features, student_features):
         return torch.sum((teacher_features - student_features) ** 2, 1).mean()
 
-    def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> (TrainerResult, TrainerResult):
+    def train(self, epochs: int, evaluation_epoch_interval: int = 10) -> tuple[TrainerResult, TrainerResult]:
 
         optimizer = torch.optim.SGD(
             self.model.student.model.parameters(),
@@ -65,11 +65,12 @@ class TrainerSTFPM(Trainer):
                 batch = batch.to(self.device)
                 teacher_features, student_features = self.model(batch)
 
+                loss = 0
                 for i in range(len(student_features)):
 
                     teacher_features[i] = F.normalize(teacher_features[i], dim=1)
                     student_features[i] = F.normalize(student_features[i], dim=1)
-                    loss = TrainerSTFPM.stfpm_loss(teacher_features[i], student_features[i])
+                    loss += TrainerSTFPM.stfpm_loss(teacher_features[i], student_features[i])
 
                 avg_batch_loss += loss.item()
 
@@ -88,7 +89,7 @@ class TrainerSTFPM(Trainer):
                 print("Evaluating model...")
                 metrics = self.evaluator.evaluate(self.model)
                 
-                if self.saving_criteria(best_metrics, metrics) and self.save_path is not None: 
+                if self.saving_criteria and self.save_path is not None: 
                     print("Saving model...")
                     torch.save(self.model.state_dict(), self.save_path)
                     print(f"Model saved to {self.save_path}")

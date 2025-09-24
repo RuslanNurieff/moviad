@@ -23,6 +23,12 @@ class STFPM(torch.nn.Module):
         self.teacher = teacher
         self.student = student
 
+        for param in self.teacher.model.parameters():
+            param.requires_grad = False
+
+        for param in self.student.model.parameters():
+            param.requires_grad = True
+
     def forward(self, batch: torch.Tensor):
 
         if self.training:

@@ -52,12 +52,12 @@ class BMAD(IadDataset):
     ):
         """
         Args:
-            root_dir (str): Root directory of BMAD dataset
-            category (str): Category name (e.g., 'Brain_MRI', 'Liver_CT', etc.)
-            split (str): 'train', 'test', or 'validation'
-            transform: Torchvision transforms to apply
-            has_masks (bool): Whether this category has segmentation masks
-            image_size (tuple): Target image size for resizing
+            task_type (TaskType): Type of task (e.g., classification, segmentation).
+            root_dir (str): Root directory of BMAD dataset.
+            category (str): Category name (e.g., 'brain', 'liver', etc.).
+            split (Split): Dataset split ('train', 'test').
+            norm (bool): Whether to normalize images.
+            image_size (tuple): Target image size for resizing.
         """
         self.category = CATEGORIES_MAPPING[category]
         self.root_category = Path(root_dir) / Path(self.category)
