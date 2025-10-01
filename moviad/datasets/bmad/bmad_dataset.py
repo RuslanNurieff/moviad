@@ -23,7 +23,7 @@ CATEGORIES_MAPPING = {
 }
 
 
-CATEGORIES = ("brain", "chest", "histopathology", "liver", "retinaoct", "retinaresc")
+CATEGORIES = ("brain", "liver", "retinaoct", "chest", "histopathology", "retinaresc")
 
 
 class BMAD(IadDataset):
