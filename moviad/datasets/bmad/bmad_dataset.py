@@ -48,7 +48,7 @@ class BMAD(IadDataset):
         category: str,
         split: Split,
         norm: bool = True,
-        image_size=(256, 256),
+        image_size=(224, 224),
     ):
         """
         Args:
