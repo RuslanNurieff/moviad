@@ -154,7 +154,7 @@ class BMAD(IadDataset):
         samples["mask_path"] = ""
 
         # For test split and categories with masks, try to get mask paths for ungood images
-        if self.split == Split.TEST and self.has_masks:
+        if (self.split == Split.TEST or self.split == Split.VALID) and self.has_masks:
             mask_candidates = []
             for _, row in samples.iterrows():
                 if row["label_index"] != 1:
