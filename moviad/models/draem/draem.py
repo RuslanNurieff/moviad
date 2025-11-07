@@ -39,15 +39,15 @@ class DRAEM(nn.Module):
         self.loss_ssim = SSIM()
         self.loss_focal = FocalLoss()
 
-    # def train(self, *args, **kwargs):
-    #     self.model.train()
-    #     self.model_seg.train()
-    #     return super().train(*args, **kwargs)
+    def train(self, *args, **kwargs):
+        self.model.train()
+        self.model_seg.train()
+        return super().train(*args, **kwargs)
 
-    # def eval(self, *args, **kwargs):
-    #     self.model.eval()
-    #     self.model_seg.eval()
-    #     return super().eval(*args, **kwargs)
+    def eval(self, *args, **kwargs):
+        self.model.eval()
+        self.model_seg.eval()
+        return super().eval(*args, **kwargs)
 
     
     def forward(self, batch):

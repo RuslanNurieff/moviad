@@ -13,7 +13,7 @@ from PIL import Image
 
 
 
-class DRAEMTrain(Dataset):
+class DRAEMContinualDataset(Dataset):
 
     def __init__(self, base_dataset, anomaly_source_path, split, resize_shape=None):
         self.base_dataset = base_dataset
