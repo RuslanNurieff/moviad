@@ -12,7 +12,7 @@ from scipy.stats import special_ortho_group
 import warnings
 
 def create_fastflow(img_shape, backbone_name, device):
-    backbone_name = "wide_resnet50_2"
+    # backbone_name = "wide_resnet50_2"
 
     fast_flow_model = CompleteFastFlowModel(backbone_name,input_size= img_shape, normalize = True)
     fast_flow_module = FastflowModel(input_size = img_shape,flow_steps=8,conv3x3_only=False,hidden_ratio=1.0,channels=fast_flow_model.channels,scales=fast_flow_model.scales)
@@ -596,7 +596,7 @@ class CompleteFastFlowModel(nn.Module):
     def __init__(self,backbone_name,input_size,normalize):
         super().__init__()
 
-        if backbone_name in ["cait_m48_448", "deit_base_distilled_patch16_384"]:
+        if backbone_name in ["cait_m48_448", "cait_s24_224", "deit_base_distilled_patch16_384"]:
             feature_extractor = timm.create_model(backbone_name, pretrained=True)
         elif backbone_name in ["resnet18", "wide_resnet50_2"]:
             feature_extractor = timm.create_model(

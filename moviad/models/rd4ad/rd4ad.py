@@ -5,8 +5,8 @@ from torchvision.transforms import GaussianBlur
 import torch.nn.functional as F
 import numpy as np
 
-from moviad.models.components.rd4ad.resnet import resnet18
-from moviad.models.components.rd4ad.deresnet import de_resnet18
+from moviad.models.components.rd4ad.resnet import wide_resnet50_2, resnet18
+from moviad.models.components.rd4ad.deresnet import de_wide_resnet50_2, de_resnet18
 
 class RD4AD(torch.nn.Module):
 
@@ -24,8 +24,12 @@ class RD4AD(torch.nn.Module):
         self.device = device
         self.input_size = input_size
 
-        self.encoder, self.bn = resnet18(pretrained=True)
-        self.decoder = de_resnet18(pretrained=False)
+        if self.backbone_name == "resnet18":
+            self.encoder, self.bn = resnet18(pretrained=True)
+            self.decoder = de_resnet18(pretrained=False)
+        elif self.backbone_name == "wide_resnet50_2":
+            self.encoder, self.bn = wide_resnet50_2(pretrained=True)
+            self.decoder = de_wide_resnet50_2(pretrained=False)
 
     def to(self, device: torch.device):
         self.encoder.to(device)
@@ -61,7 +65,9 @@ class RD4AD(torch.nn.Module):
         
     def post_process(self, enc_batch, dec_batch) -> torch.Tensor:
         anomaly_map = None
-        blur = GaussianBlur(1, sigma = 4)
+        sigma = 4
+        kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
+        blur = GaussianBlur(kernel_size=kernel_size, sigma=4)
 
         #iterate over the feature extraction layers batches
         for i in range(len(enc_batch)):
@@ -75,7 +81,7 @@ class RD4AD(torch.nn.Module):
             if anomaly_map is None:
                 anomaly_map = a_map
             else:
-                anomaly_map += a_map
+                anomaly_map *= a_map
 
         anomaly_map = blur(anomaly_map)
         return anomaly_map, torch.max(anomaly_map.view(anomaly_map.size(0), -1), dim = 1)[0]

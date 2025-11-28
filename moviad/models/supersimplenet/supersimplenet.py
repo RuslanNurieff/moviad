@@ -40,7 +40,7 @@ class SuperSimpleNet(nn.Module):
         "gaussian_noise_mean" : 0,
         "gaussian_noise_std" : 0.015,
         "perlin_threshold": 0.2, # for mvtec, for visa is 0.6
-        "image_shape" : (256, 256),
+        "image_shape" : (224, 224),
         "stop_grad": True,
     }
 
@@ -69,14 +69,14 @@ class SuperSimpleNet(nn.Module):
 
         # feature adapter
         self.adaptor = nn.Conv2d(
-            in_channels=channels,
-            out_channels=channels,
+            in_channels=channels[0],
+            out_channels=channels[0],
             kernel_size=1,
             stride=1,
         )
         self.adaptor.apply(init_weights)
 
-        self.segdec = Discriminator(channel_dim=channels, stop_grad=stop_grad)
+        self.segdec = Discriminator(channel_dim=channels[0], stop_grad=stop_grad)
         self.anomaly_generator = AnomalyGenerator(
             noise_mean=self.DEFAULT_PARAMETERS["gaussian_noise_mean"], 
             noise_std=self.DEFAULT_PARAMETERS["gaussian_noise_std"], 
@@ -188,7 +188,7 @@ class AnomalyMapGenerator(nn.Module):
     def __init__(self, sigma: float) -> None:
         super().__init__()
         kernel_size = 2 * math.ceil(3 * sigma) + 1
-        self.smoothing = torchvision.transforms.GaussianBlur(kernel_size, sigma=0.4)
+        self.smoothing = torchvision.transforms.GaussianBlur(kernel_size, sigma=4)
 
     def forward(self, out_map: torch.Tensor, final_size: tuple[int, int]) -> torch.Tensor:
         """Upscale and smooth anomaly map to get final anomaly map of same size as input image.
