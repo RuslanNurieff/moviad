@@ -96,10 +96,15 @@ class BMAD(IadDataset):
             ]
         )
 
-        self.samples = self._load_samples()
+        self.samples: pd.DataFrame = None
 
-    def _load_samples(self):
-        """Collect dataset samples as a DataFrame with robust path handling.
+    def is_loaded(self) -> bool:
+        return self.samples is not None
+
+    def load_dataset(self):
+        """Load dataset samples as a DataFrame with robust path handling.
+        
+        Must be called after initialization to populate the samples.
 
         Columns:
         - image_path: absolute file path to the image
@@ -108,6 +113,10 @@ class BMAD(IadDataset):
         - label_index: 0 for good, 1 for ungood
         - mask_path: absolute path to mask (only for test and categories with masks); empty string otherwise
         """
+        if self.is_loaded():
+            print("Dataset already loaded")
+            return
+
         split_dir = Path(self.build_root_path)
         rows = []
 
@@ -141,9 +150,8 @@ class BMAD(IadDataset):
                     )
 
         if not rows:
-            return pd.DataFrame(
-                columns=["image_path", "label", "label_index", "mask_path"]
-            )  # empty
+            msg = f"Found 0 images in {split_dir}"
+            raise RuntimeError(msg)
 
         samples = pd.DataFrame(rows)
 
@@ -199,6 +207,9 @@ class BMAD(IadDataset):
         samples = samples.drop(
             columns=[c for c in ["_sub_folder", "_filename"] if c in samples.columns]
         )
+        
+        self.samples = samples
+        
         if self.preload_imgs:
             self.data = [
                 self.transform_image(
@@ -206,7 +217,6 @@ class BMAD(IadDataset):
                 )
                 for index in range(len(self.samples))
             ]
-        return samples
 
     def __len__(self) -> int:
         return len(self.samples)
