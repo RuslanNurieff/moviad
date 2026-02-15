@@ -72,7 +72,7 @@ class CFA(VADModel):
         self.J = 3
         self.r = nn.Parameter(1e-5*torch.ones(1), requires_grad=True)
 
-        self.device = torch.device("cpu")
+        self.device = feature_extractor.device
 
         self.backbone = backbone
         self.feature_maps_shape: tuple = None 
@@ -359,6 +359,9 @@ class CFA(VADModel):
 
     @staticmethod
     def gaussian_smooth_torch(x, sigma=4):
+        if x.ndim == 2:
+            x = x.unsqueeze(0) # if processing (working on) one image
+        
         blur = GaussianBlur(3, sigma)
         return blur(x)
 

@@ -46,6 +46,7 @@ class CustomFeatureExtractor:
         self,
         model_name: str,
         layers_idx: list,
+        device: str,
         frozen=True,
         quantized=False,
         calibration_dataloader=None,
@@ -62,7 +63,7 @@ class CustomFeatureExtractor:
         self.model_name = model_name
         self.quantized = quantized
         self.layers_idx = layers_idx
-        self.device = torch.device("cpu")
+        self.device = device
         self.project_path = Path(__file__).parent.parent
 
         # ¢heck for backbone support
