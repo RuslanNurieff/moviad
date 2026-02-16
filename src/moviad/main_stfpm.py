@@ -10,6 +10,7 @@ from moviad.scenarios.continual.continual_trainer import ContinualTrainer
 from moviad.scenarios.continual.continual_dataset import ContinualDataset
 from moviad.scenarios.continual.strategies.fine_tuning import FineTuning
 import torch
+from torchvision import transforms
 import wandb
 
 import argparse
@@ -171,11 +172,21 @@ def main():
     wandb.define_metric("train_loss", step_metric="epoch")
     wandb.define_metric("eval/*", step_metric="epoch")
 
+    imagenet_mean = (0.485, 0.456, 0.406)
+    imagenet_std  = (0.229, 0.224, 0.225)
+
+    mvtec_transform = [
+        transforms.Resize((256, 256), antialias=True),
+        transforms.ToTensor(),
+        transforms.Normalize(imagenet_mean, imagenet_std),
+    ]
+
     dataset_args = {
         "dataset_path" : "/mnt/disk1/manuel_barusco/datasets/mvtec",
         "img_size" : (256, 256),
         "gt_mask_size" : (256, 256),
-        "image_transform_list" : None
+        #"image_transform_list" : None
+        "image_transform_list": mvtec_transform
     }
 
     continual_dataset = ContinualDataset(
@@ -196,7 +207,7 @@ def main():
     )
 
     if backbone == "mcunet-in3":
-        layers = ["1","2","3"]
+        layers = ["2", "6", "14"]
     else:
         layers = ["layer1", "layer2", "layer3"]
 
