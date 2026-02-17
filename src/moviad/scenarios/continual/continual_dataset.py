@@ -79,7 +79,7 @@ class ContinualDataset:
 
         return test_dataset 
 
-    def get_all_tasks_data(self) -> torch.utils.data.DataLoader:
+    def get_all_tasks_data(self) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
 
         """
         Get the data for all tasks.
