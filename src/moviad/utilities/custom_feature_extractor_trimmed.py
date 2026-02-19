@@ -46,7 +46,7 @@ class CustomFeatureExtractor:
         self,
         model_name: str,
         layers_idx: list,
-        device: str,
+        device: torch.device,
         frozen=True,
         quantized=False,
         calibration_dataloader=None,

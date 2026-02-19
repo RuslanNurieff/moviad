@@ -16,7 +16,9 @@ class STFPMTrainArgs(TrainingArgs):
     def init_train(self, model: VADModel):
         if self.optimizer is None:
             self.optimizer = torch.optim.SGD(
-                model.parameters(), lr=0.4, weight_decay=1e-4, momentum=0.9
+                #model.parameters(), lr=0.4, weight_decay=1e-4, momentum=0.9
+                #model.parameters(), lr=0.04, weight_decay=1e-4, momentum=0.9
+                model.parameters(), lr=0.01, weight_decay=1e-4, momentum=0.9
             )
         if self.loss_function is None:
             self.loss_function = stfpm_loss
@@ -32,6 +34,7 @@ class STFPM(VADModel):
         self.teacher = teacher
         self.student = student
         self.device = torch.device("cpu")
+        self.mse_loss = torch.nn.MSELoss(reduction="sum")
 
     def forward(self, batch: torch.Tensor):
         if self.training:
@@ -86,7 +89,9 @@ class STFPM(VADModel):
         for i in range(len(student_features)):
             teacher_features[i] = F.normalize(teacher_features[i], dim=1)
             student_features[i] = F.normalize(student_features[i], dim=1)
-            loss += training_args.loss_function(teacher_features[i], student_features[i])
+            #loss += training_args.loss_function(teacher_features[i], student_features[i])
+            height, width = teacher_features[i].shape[2:]
+            loss += (0.5 / (width * height)) * self.mse_loss(teacher_features[i], student_features[i])
 
         training_args.optimizer.zero_grad()
         loss.backward()

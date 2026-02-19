@@ -100,8 +100,16 @@ class Trainer:
                 print("Training performances:")
                 Trainer.print_metrics(results)
 
+                """
                 if self.logger is not None:
                     if self.logging_prefix is not None:
                         self.logger.log({
                             f"{self.logging_prefix}train/{metric_name}": value for metric_name, value in results.items()
                         })
+                """
+                
+                if self.logger is not None:
+                    if self.logging_prefix is not None:
+                        self.logger.log({
+                            f"{self.logging_prefix}eval/{metric_name}": value for metric_name, value in results.items()
+                        }, step=epoch+1)

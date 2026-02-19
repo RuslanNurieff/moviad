@@ -30,7 +30,7 @@ Inside the <code>/main_scripts</code> directory are present some execution scrip
 For example, for training patchcore: 
 
 ```bash
-python main_scripts/main_patchcore.py --mode train --dataset_path /home/datasets/mvtec --category pill --backbone mobilenet_v2 --ad_layers features.4 features.7 features.10 --device cuda:0 --save_path ./patch.pt 
+uv run main_scripts/main_patchcore.py --mode train --dataset_path /home/datasets/mvtec --category pill --backbone mobilenet_v2 --ad_layers features.4 features.7 features.10 --device cuda:0 --save_path ./patch.pt 
 ```
 
 For every main script all its parameters are documented. 
