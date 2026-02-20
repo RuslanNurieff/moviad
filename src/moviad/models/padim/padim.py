@@ -2,19 +2,20 @@ from __future__ import annotations
 import os
 from random import sample
 from typing import Mapping, Union, Any, Dict, List, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
+from tqdm import tqdm
 
-# from profiler import profile
 from scipy.ndimage import gaussian_filter
-from scipy.spatial.distance import mahalanobis
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
+from moviad.models.vad_model import VADModel
+from moviad.models.training_args import TrainingArgs
 
 # Dict: "backbone_model_name" -> {(layer_idxs): (true_dimension, random_projection_dimension)}
 EMBEDDING_SIZES = {
@@ -56,20 +57,21 @@ def idx_to_layer_name(backbone_model_name, idx: Union[Tuple, List]):
 
 
 @dataclass
-class PadimArgs:
-    train_dataset: IadDataset | None = None
-    test_dataset: IadDataset | None = None
-    category: str | None = None
-    backbone: str | None = None
-    ad_layers: list | None = None
-    model_checkpoint_save_path: str | None = None
-    diagonal_convergence: bool | None = False
-    batched_update: bool | None = False
-    results_dirpath: str | None = None
-    logger = None
+class PadimTrainArgs(TrainingArgs):
+    """Training arguments for Padim.
+
+    Padim does not use gradient-based optimization, so optimizer and
+    loss_function are unused. Training consists of a single pass through
+    the data to collect embeddings and fit a multivariate Gaussian.
+    """
+    diag_cov: bool = False
+
+    def init_train(self, model: VADModel):
+        # Padim has no optimizer or loss — training is statistical fitting
+        pass
 
 
-class Padim(nn.Module):
+class Padim(VADModel):
     HYPERPARAMS = [
         "class_name",
         "backbone_model_name",
@@ -83,17 +85,21 @@ class Padim(nn.Module):
 
     def __init__(
         self,
-        args: PadimArgs,
+        backbone_model_name: str,
+        layers_idxs: Union[Tuple, List],
+        device: str,
+        class_name: str = "",
+        diag_cov: bool = False,
     ):
         """
         Args:
-            backbone_model_name: one of the following strings: 'wide_resnet50_2', 'mobilenet_v2'
-            save_path: path to save the model and the extracted features
-            class_name: one of the following strings: 'bottle', 'cable', 'capsule', 'carpet', 'grid', 'hazelnut',
-                'leather', 'metal_nut', 'pill', 'screw', 'tile', 'toothbrush', 'transistor', 'wood', 'zipper'
+            backbone_model_name: one of the following strings: 'wide_resnet50_2', 'mobilenet_v2',
+                'phinet_1.2_0.5_6_downsampling', 'micronet-m1', 'mcunet-in3'
+            layers_idxs: indices of the layers to extract features from
+            class_name: category name (e.g. 'bottle', 'cable', ...)
             diag_cov: if True, keep only the diagonal elements of the covariance matrices
         """
-        super(Padim, self).__init__()
+        super().__init__()
         self.diagonal_gauss_cov = None
         self.class_name = class_name
         self.device = device
@@ -193,7 +199,7 @@ class Padim(nn.Module):
                 mode="bilinear",
                 align_corners=False,
             )
-            .squeeze()
+            .squeeze(1)
             .numpy()
         )
         # 5. apply gaussian smoothing on the score map
@@ -202,15 +208,79 @@ class Padim(nn.Module):
         # 6. the image anomaly score is the maximum score in the score map
         img_scores = score_map.reshape(score_map.shape[0], -1).max(axis=1)
 
-        # need to unsqueeze to have (batch, 1, H, W), where 1 is the single channel
-        # that represents the anomaly score for each pixel
+        # need to unsqueeze to have (batch, 1, H, W)
         score_map = np.expand_dims(score_map, axis=1)
 
-        return score_map, img_scores
+        return torch.from_numpy(score_map), torch.from_numpy(img_scores)
+
+    def to(self, device: torch.device):
+        super().to(device)
+        self.backbone_model.to(device)
+        self.device = device
+        return self
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        # backbone is always frozen/eval for Padim
+        self.backbone_model.model.eval()
+        return self
+
+    def parameters(self):
+        # Padim has no trainable parameters (statistical fitting only)
+        return iter([])
+
+    def train_epoch(
+        self, epoch, train_dataloader, training_args: PadimTrainArgs
+    ):
+        """Single-epoch training for Padim.
+
+        Collects feature maps from all batches, computes embeddings,
+        and fits the multivariate Gaussian distribution.
+
+        Returns:
+            float: 0.0 (Padim has no loss in the traditional sense)
+        """
+        # 1. collect feature maps from all batches
+        layer_outputs: dict[str, list[torch.Tensor]] = {
+            layer: [] for layer in self.layers_idxs
+        }
+        for batch in tqdm(train_dataloader, desc="| feature extraction | train |"):
+            batch_outputs = self.train_step(batch, training_args)
+            for layer, output in batch_outputs.items():
+                layer_outputs[layer].extend(output)
+
+        # 2. convert feature maps to embeddings
+        embedding_vectors = self.raw_feature_maps_to_embeddings(layer_outputs)
+
+        # 3. fit the multivariate Gaussian distribution
+        diag_cov = getattr(training_args, 'diag_cov', self.diag_cov)
+        if diag_cov:
+            self.fit_multivariate_diagonal_gaussian(
+                embedding_vectors, update_params=True
+            )
+        else:
+            self.fit_multivariate_gaussian(
+                embedding_vectors, update_params=True
+            )
+
+        return 0.0  # no loss for Padim
+
+    def train_step(self, batch: torch.Tensor, training_args: TrainingArgs):
+        """Single batch training step — extracts feature maps.
+
+        Args:
+            batch: Input image batch.
+            training_args: Training arguments (unused for Padim).
+
+        Returns:
+            dict: Layer outputs (feature maps) for this batch.
+        """
+        batch = batch.to(self.device)
+        return self.forward(batch)
 
     def fit_multivariate_diagonal_gaussian(
-        self, embedding_vectors: torch.Tensor, update_params: bool, logger=None
-    ) -> (torch.Tensor, torch.Tensor):
+        self, embedding_vectors: torch.Tensor, update_params: bool
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Fit a multivariate Gaussian distribution to the set of given embedding vectors.
 
@@ -332,40 +402,46 @@ class Padim(nn.Module):
         """
         B, C, H, W = embedding_vectors.size()
         embedding_vectors = embedding_vectors.view(B, C, H * W).cpu().numpy()
-        dist_list = []
         assert (
             self.gauss_mean is not None and self.gauss_cov is not None
         ), "The model must be trained first."
-        # compute each patch-embedding distance
-        for i in range(H * W):
-            mean = self.gauss_mean[:, i]
-            cov_inv = np.linalg.inv(self.gauss_cov[:, :, i])
-            dist = [
-                mahalanobis(sample[:, i], mean, cov_inv) for sample in embedding_vectors
-            ]
-            dist_list.append(dist)
-        dist_list = np.array(dist_list).transpose(1, 0).reshape(B, H, W)
+
+        # (C, C, H*W) -> (H*W, C, C) -> inv -> (H*W, C, C)
+        cov = np.transpose(self.gauss_cov, (2, 0, 1))  # (H*W, C, C)
+        cov_inv = np.linalg.inv(cov)  # single batched call
+
+        # (B, C, H*W) - (1, C, H*W) -> (B, C, H*W)
+        diff = embedding_vectors - self.gauss_mean[np.newaxis, :, :]
+
+        # Rearrange to (H*W, B, C) for batched matmul
+        diff_t = np.transpose(diff, (2, 0, 1))  # (H*W, B, C)
+
+        # Batched matmul: (H*W, B, C) @ (H*W, C, C) -> (H*W, B, C)
+        temp = np.matmul(diff_t, cov_inv)
+
+        # Mahalanobis distance squared: element-wise multiply and sum over C
+        dist_sq = np.sum(temp * diff_t, axis=2)  # (H*W, B)
+
+        dist_list = np.sqrt(dist_sq).T.reshape(B, H, W)  # (B, H, W)
         return torch.tensor(dist_list)
 
     def compute_distances_diagonal(self, embedding_vectors: torch.Tensor):
         """
         Compute the Mahalanobis distances between the embedding vectors and the
-        multivariate Gaussian distribution.
+        multivariate Gaussian distribution (diagonal covariance).
         """
         B, C, H, W = embedding_vectors.size()
         embedding_vectors = embedding_vectors.view(B, C, H * W).cpu().numpy()
-        dist_list = []
         assert (
             self.gauss_mean is not None and self.diagonal_gauss_cov is not None
         ), "The model must be trained first."
-        # compute each patch-embedding distance
-        for i in range(H * W):
-            mean = self.gauss_mean[:, i]
-            diag_cov_i = self.diagonal_gauss_cov[:, i]
-            dist = [
-                malahanobis_distance_diagonal(sample[:, i], mean, diag_cov_i)
-                for sample in embedding_vectors
-            ]
-            dist_list.append(dist)
-        dist_list = np.array(dist_list).transpose(1, 0).reshape(B, H, W)
-        return torch.tensor(dist_list)
+
+        # (B, C, H*W) - (1, C, H*W) -> (B, C, H*W)
+        diff = embedding_vectors - self.gauss_mean[np.newaxis, :, :]
+
+        # Mahalanobis with diagonal cov: sqrt(sum((x-mu)^2 / diag_cov))
+        # diagonal_gauss_cov shape: (C, H*W)
+        dist_sq = np.sum(diff ** 2 / self.diagonal_gauss_cov[np.newaxis, :, :], axis=1)  # (B, H*W)
+
+        dist = np.sqrt(dist_sq).reshape(B, H, W)
+        return torch.tensor(dist)
