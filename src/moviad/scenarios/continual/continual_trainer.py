@@ -8,11 +8,11 @@ from moviad.utilities.evaluation.metrics import Metric
 
 class ContinualTrainer:
 
-    def __init__(self, 
-                 continual_dataset: ContinualDataset, 
-                 continual_model: ContinualModel, 
-                 device: torch.device, 
-                 metrics: list[Metric], 
+    def __init__(self,
+                 continual_dataset: ContinualDataset,
+                 continual_model: ContinualModel,
+                 device: torch.device,
+                 metrics: list[Metric],
                  training_args: TrainingArgs,
                  logger: any = None
             ):
@@ -29,7 +29,7 @@ class ContinualTrainer:
         self.device = device
         self.logger = logger
 
-    
+
     def train(self):
 
         for task_index in range(len(self.continual_dataset)):
@@ -52,7 +52,7 @@ class ContinualTrainer:
                 logger=self.logger,
             )
 
-            self.continual_model.end_task()
+            self.continual_model.end_task(task_index, train_dataset)
 
             # Evaluate on all previous tasks and get summary metrics
             summary_metrics = { metric.name: [] for metric in self.metrics }
@@ -94,8 +94,3 @@ class ContinualTrainer:
                         f"Summary/{metric}": summary_metrics[metric] for metric in summary_metrics.keys()
                     }
                 )
-
-            
-
-            
-

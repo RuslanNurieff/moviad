@@ -60,7 +60,7 @@ class MVTecDataset(VADDataset):
         category: str,
         split: Split | list[Split]
     ) -> None:
-        
+
         super().__init__(
             dataset_arguments,
             category,
