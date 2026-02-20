@@ -69,30 +69,9 @@ class PatchCore(VADModel):
         self.feature_extractor.to(device)
         self.device = device
 
-    def forward(self, input_tensor: Tensor) -> Tensor | dict[str, Tensor]:
-        """Return Embedding during training, or a tuple of anomaly map and anomaly score during testing.
-
-        Steps performed:
-        1. Get features from a CNN.
-        2. Generate embedding based on the features.
-        3. Compute anomaly map in test mode, return the embedding in training mode
-
-        Args:
-            input_tensor (Tensor): Input tensor
-
-        Returns:
-            Tensor | dict[str, Tensor]: Embedding for training,
-                anomaly map and anomaly score for testing.
-        """
-
-        image_size = input_tensor.shape[2:]
-
-        #extract the features for the input tensor
-        if hasattr(self, "memory_bank"):
-            self.memory_bank.to(self.device)
-
+    def extract_embedding(self, batch:torch.Tensos):
         with torch.no_grad():
-            features = self.feature_extractor(input_tensor.to(self.device))
+            features = self.feature_extractor(batch.to(self.device))
 
         #concatenate the embeddings
         if isinstance(features, dict):
@@ -116,6 +95,36 @@ class PatchCore(VADModel):
 
         batch_size, _, width, height = embedding.shape
         embedding = self.reshape_embedding(embedding)
+
+        return embedding, batch_size, width, height
+
+    def forward(self, input_tensor: Tensor) -> Tensor | dict[str, Tensor]:
+        """Return Embedding during training, or a tuple of anomaly map and anomaly score during testing.
+
+        Steps performed:
+        1. Get features from a CNN.
+        2. Generate embedding based on the features.
+        3. Compute anomaly map in test mode, return the embedding in training mode
+
+        Args:
+            input_tensor (Tensor): Input tensor
+
+        Returns:
+            Tensor | dict[str, Tensor]: Embedding for training,
+                anomaly map and anomaly score for testing.
+        """
+
+        image_size = input_tensor.shape[2:]
+
+        #extract the features for the input tensor
+        if hasattr(self, "memory_bank"):
+            if type(self.memory_bank) is dict:
+                for k,v in self.memory_bank:
+                    v.to(self.device)
+            else: 
+                self.memory_bank.to(self.device)
+
+        embedding, batch_size, width, height = self.extract_embedding(input_tensor)
 
         #embedding shape: (#num_patches, emb_dim)
 
@@ -158,7 +167,7 @@ class PatchCore(VADModel):
         locations = locations.reshape((batch_size, -1))
 
         # compute the anomaly score of the images
-        pred_scores = self.compute_anomaly_score(patch_scores, locations, embedding)
+        pred_scores = self.compute_anomaly_score(patch_scores, locations, embedding, memory_bank)
 
         # reshape to w,h
         patch_scores = patch_scores.reshape((batch_size, 1, width, height))
@@ -321,7 +330,7 @@ class PatchCore(VADModel):
         return patch_scores, locations
 
 
-    def compute_anomaly_score(self, patch_scores: Tensor, locations: Tensor, embedding: Tensor) -> Tensor:
+    def compute_anomaly_score(self, patch_scores: Tensor, locations: Tensor, embedding: Tensor, memory_bank: Tensor) -> Tensor:
         """
         Compute Image-Level Anomaly Score.
 
@@ -333,7 +342,6 @@ class PatchCore(VADModel):
         Returns:
             Tensor: Image-level anomaly scores
         """
-        memory_bank = self.memory_bank
         if self.apply_quantization:
             assert self.product_quantizer is not None
             memory_bank = self.product_quantizer.decode(memory_bank)
@@ -367,6 +375,7 @@ class PatchCore(VADModel):
             _, support_samples = self.nearest_neighbors(
                 nn_sample,
                 n_neighbors=min(self.num_neighbors, memory_bank_effective_size),
+                memory_bank=memory_bank
             )
 
         # 4. Find the distance of the patch features to each of the support samples

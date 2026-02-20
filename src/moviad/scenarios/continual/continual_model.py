@@ -16,9 +16,11 @@ class ContinualModel(ABC):
 
     def train(self, mode: bool = True):
         self.vad_model.train(mode)
+        self.training = True
     
     def eval(self):
         self.vad_model.eval()
+        self.training = False
     
     def forward(self, batch: torch.Tensor):
         return self.vad_model(batch)

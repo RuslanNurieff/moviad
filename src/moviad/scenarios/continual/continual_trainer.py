@@ -33,6 +33,9 @@ class ContinualTrainer:
     def train(self):
 
         for task_index in range(len(self.continual_dataset)):
+
+            self.continual_model.train()
+
             print(f"Training for task: {task_index} , {self.continual_dataset.get_task_category(task_index)}")
 
             train_dataset, eval_dataset = self.continual_dataset.get_task_data(task_index)
@@ -69,6 +72,7 @@ class ContinualTrainer:
                 # update summary metrics
                 for metric in summary_metrics.keys():
                     summary_metrics[metric].append(results[metric])
+
 
                 # log metrics for the current task
                 if self.logger:
