@@ -47,7 +47,7 @@ class PatchCore(VADModel):
         super().__init__()
 
         self.num_neighbors = num_neighbors
-        self.device = torch.device("cpu")
+        self.device = feature_extractor.device
 
         self.feature_extractor = feature_extractor
         self.feature_pooler = torch.nn.AvgPool2d(3,1,1)

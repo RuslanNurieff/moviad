@@ -1,29 +1,44 @@
-import numpy as np
-import torch.nn as nn
-import torch
-from torch import Tensor
-
+from dataclasses import dataclass
 from typing import Callable, List, Tuple, Union, Iterable
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import Tensor
+from tqdm import tqdm
 import timm
 from timm.models.vision_transformer import VisionTransformer
 from timm.models.cait import Cait
-
 from scipy.stats import special_ortho_group
 import warnings
 
+from moviad.models.vad_model import VADModel
+from moviad.models.training_args import TrainingArgs
+
+from moviad.models.fastflow.loss_functions import fastflow_loss
+
+
+@dataclass
+class FastFlowTrainArgs(TrainingArgs):
+
+    def init_train(self, model: VADModel):
+        if self.optimizer is None:
+            self.optimizer = torch.optim.Adam(
+                model.parameters()
+            )
+        if self.loss_function is None:
+            self.loss_function = fastflow_loss
+
+
 def create_fastflow(img_shape, backbone_name, device):
-    backbone_name = "wide_resnet50_2"
-
-    fast_flow_model = CompleteFastFlowModel(backbone_name,input_size= img_shape, normalize = True)
-    fast_flow_module = FastflowModel(input_size = img_shape,flow_steps=8,conv3x3_only=False,hidden_ratio=1.0,channels=fast_flow_model.channels,scales=fast_flow_model.scales)
+    fast_flow_model = CompleteFastFlowModel(backbone_name, input_size=img_shape, normalize=True, device=device)
+    fast_flow_module = FastflowModel(
+        input_size=img_shape, flow_steps=8, conv3x3_only=False,
+        hidden_ratio=1.0, channels=fast_flow_model.channels, scales=fast_flow_model.scales
+    )
     fast_flow_model.fast_flow_module = fast_flow_module
-
-    fast_flow_model.feature_extractor = fast_flow_model.feature_extractor.to(device)
-    if backbone_name in ["resnet18", "wide_resnet50_2"]:
-        fast_flow_model.norms = fast_flow_model.norms.to(device)
-    fast_flow_model.fast_flow_module  = fast_flow_model.fast_flow_module.to(device)
-    fast_flow_model.device = device
-
+    fast_flow_model.to(device)
     return fast_flow_model
 
 class InvertibleModule(nn.Module):
@@ -552,7 +567,6 @@ def create_fast_flow_block(
         )
     return nodes
 
-import torch.nn.functional as F
 
 class AnomalyMapGenerator(nn.Module):
     """Generate Anomaly Heatmap."""
@@ -592,9 +606,10 @@ class AnomalyMapGenerator(nn.Module):
         return anomaly_map
 
 
-class CompleteFastFlowModel(nn.Module):
-    def __init__(self,backbone_name,input_size,normalize):
+class CompleteFastFlowModel(VADModel):
+    def __init__(self, backbone_name, input_size, normalize, device):
         super().__init__()
+        self.device = device
 
         if backbone_name in ["cait_m48_448", "deit_base_distilled_patch16_384"]:
             feature_extractor = timm.create_model(backbone_name, pretrained=True)
@@ -646,28 +661,69 @@ class CompleteFastFlowModel(nn.Module):
         self.scales = scales
 
 
-    def forward(self,input_tensor):
+    def forward(self, input_tensor):
         if isinstance(self.feature_extractor, VisionTransformer):
-            # print("get_vit_features")
             features = self._get_vit_features(input_tensor)
         elif isinstance(self.feature_extractor, Cait):
-            # print("get_cait_features")
             features = self._get_cait_features(input_tensor)
         else:
-            # print("get_cnn_features")
             features = self._get_cnn_features(input_tensor)
 
         hidden_variables, log_jacobians = self.fast_flow_module(features)
 
-        if not self.training:
-            anomaly_maps = self.anomaly_map_generator(hidden_variables)
-            return_val = (
-                anomaly_maps, 
-                anomaly_maps.view(anomaly_maps.shape[0],-1).max(dim=1).values
-            )
-            return return_val
+        if self.training:
+            return hidden_variables, log_jacobians
+        else:
+            return self.post_process(hidden_variables)
 
-        return (hidden_variables, log_jacobians)
+    def post_process(self, hidden_variables: List[Tensor]) -> Tuple[Tensor, Tensor]:
+        """Generate anomaly maps from hidden variables.
+
+        Args:
+            hidden_variables (List[Tensor]): Hidden variables from NF blocks.
+
+        Returns:
+            Tuple[Tensor, Tensor]: (anomaly_maps, anomaly_scores)
+        """
+        anomaly_maps = self.anomaly_map_generator(hidden_variables)
+        anomaly_scores = anomaly_maps.view(anomaly_maps.shape[0], -1).max(dim=1).values
+        return anomaly_maps, anomaly_scores
+
+    def to(self, device: torch.device):
+        super().to(device)
+        self.feature_extractor.to(device)
+        if hasattr(self, 'norms'):
+            self.norms.to(device)
+        self.fast_flow_module.to(device)
+        self.anomaly_map_generator.to(device)
+        self.device = device
+        return self
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        self.feature_extractor.eval()
+        self.fast_flow_module.train(mode)
+        return self
+
+    def parameters(self):
+        return self.fast_flow_module.parameters()
+
+    def train_epoch(self, epoch, train_dataloader, training_args: TrainingArgs):
+        avg_batch_loss = 0
+        for batch in tqdm(train_dataloader):
+            avg_batch_loss += self.train_step(batch, training_args)
+        avg_batch_loss /= len(train_dataloader)
+        return avg_batch_loss
+
+    def train_step(self, batch: torch.Tensor, training_args: TrainingArgs):
+        batch = batch.to(self.device)
+        hidden_variables, log_jacobians = self.forward(batch)
+        loss = training_args.loss_function(hidden_variables, log_jacobians)
+
+        training_args.optimizer.zero_grad()
+        loss.backward()
+        training_args.optimizer.step()
+        return loss.item()
 
 
     def _get_cnn_features(self, input_tensor: Tensor) -> List[Tensor]:
