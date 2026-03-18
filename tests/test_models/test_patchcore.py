@@ -10,28 +10,29 @@ def test_model_create_train():
     import torch
     import wandb
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda:2" if torch.cuda.is_available() else "cpu"
 
     wandb.init(project="moviad_test", name="patchcore", mode="disabled")
 
     args = DatasetArguments(
-        dataset_path = "/mnt/mydisk/manuel_barusco/datasets/mvtec",
+        dataset_path = "/mnt/disk1/manuel_barusco/datasets/mvtec",
         img_size = (256, 256),
         gt_mask_size = (256, 256),
         image_transform_list = None
     )
 
     train_dataset = MVTecDataset(args, category="bottle", split="train")
-    train_dataset = Subset(train_dataset, list(range(0, 10)))  # use a subset for faster testing
+    #train_dataset = Subset(train_dataset, list(range(0, 10)))  # use a subset for faster testing
     test_dataset = MVTecDataset(args, category="bottle", split="test")
 
-    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], frozen=True)    
+    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], device, frozen=True)    
     model = PatchCore(
         feature_extractor=feature_extractor,
+        memory_bank_size=30000,
     )
     model.to(device)
 
-    training_args = TrainingArgs(epochs=1, batch_size=4)
+    training_args = TrainingArgs(epochs=1, batch_size=32)
 
     trainer = Trainer(
         training_args,

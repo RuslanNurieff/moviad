@@ -13,7 +13,7 @@ class FineTuning(ContinualModel):
     def __init__(self, model: VADModel):
         super().__init__(model)
 
-    def start_task(self):
+    def start_task(self, task_index: int, train_dataset: VADDataset, train_args: TrainingArgs):
         pass
 
     def train_task(self, 
@@ -39,5 +39,5 @@ class FineTuning(ContinualModel):
         trainer.train()
         
 
-    def end_task(self):
+    def end_task(self, task_index: int, train_dataset: VADDataset, train_args: TrainingArgs):
         pass

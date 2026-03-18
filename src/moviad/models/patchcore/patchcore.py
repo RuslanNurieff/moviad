@@ -69,7 +69,7 @@ class PatchCore(VADModel):
         self.feature_extractor.to(device)
         self.device = device
 
-    def extract_embedding(self, batch:torch.Tensos):
+    def extract_embedding(self, batch:torch.Tensor):
         with torch.no_grad():
             features = self.feature_extractor(batch.to(self.device))
 
@@ -119,10 +119,10 @@ class PatchCore(VADModel):
         #extract the features for the input tensor
         if hasattr(self, "memory_bank"):
             if type(self.memory_bank) is dict:
-                for k,v in self.memory_bank:
-                    v.to(self.device)
+                for k,v in self.memory_bank.items():
+                    self.memory_bank[k] = v.to(self.device)
             else: 
-                self.memory_bank.to(self.device)
+                self.memory_bank = self.memory_bank.to(self.device)
 
         embedding, batch_size, width, height = self.extract_embedding(input_tensor)
 
@@ -330,7 +330,7 @@ class PatchCore(VADModel):
         return patch_scores, locations
 
 
-    def compute_anomaly_score(self, patch_scores: Tensor, locations: Tensor, embedding: Tensor, memory_bank: Tensor) -> Tensor:
+    def compute_anomaly_score_old(self, patch_scores: Tensor, locations: Tensor, embedding: Tensor, memory_bank: Tensor) -> Tensor:
         """
         Compute Image-Level Anomaly Score.
 
@@ -386,6 +386,52 @@ class PatchCore(VADModel):
 
         # 6. Apply the weight factor to the score
         return weights * score  # s in the paper
+
+    def compute_anomaly_score(self, patch_scores: Tensor, locations: Tensor, embedding: Tensor, memory_bank: Tensor) -> Tensor:
+        """
+        Compute Image-Level Anomaly Score.
+        """
+        if self.apply_quantization:
+            assert self.product_quantizer is not None
+            memory_bank = self.product_quantizer.decode(memory_bank)
+            memory_bank = memory_bank.to(self.device)
+
+        if self.num_neighbors == 1:
+            return patch_scores.amax(1)
+
+        batch_size, num_patches = patch_scores.shape
+        max_patches = torch.argmax(patch_scores, dim=1)  
+        max_patches_features = embedding.reshape(batch_size, num_patches, -1)[torch.arange(batch_size), max_patches]
+
+        score = patch_scores[torch.arange(batch_size), max_patches] 
+        nn_index = locations[torch.arange(batch_size), max_patches] 
+        nn_sample = memory_bank[nn_index, :] 
+
+        memory_bank_effective_size = memory_bank.shape[0] 
+        if self.apply_quantization:
+            _, support_samples = self.nearest_neighbors_quantized(
+                nn_sample,
+                n_neighbors=min(self.num_neighbors, memory_bank_effective_size),
+            )
+        else:
+            _, support_samples = self.nearest_neighbors(
+                nn_sample,
+                n_neighbors=min(self.num_neighbors, memory_bank_effective_size),
+                memory_bank=memory_bank
+            )
+
+        # 4. Find the distance of the patch features to each of the support samples
+        distances = PatchCore.euclidean_distance(max_patches_features.unsqueeze(1), memory_bank[support_samples], self.feature_extractor.quantized)
+        
+        # 5. Apply Temperature Scaling (sqrt of embedding dimensions)
+        D = torch.sqrt(torch.tensor(embedding.shape[-1], dtype=torch.float32, device=distances.device))
+        scaled_distances = distances.squeeze(1) / D
+        
+        # Apply softmax to the scaled distances
+        weights = (1 - F.softmax(scaled_distances, dim=1))[..., 0]
+
+        # 6. Apply the weight factor to the score
+        return weights * score
 
     def save(self, output_path):
         """
