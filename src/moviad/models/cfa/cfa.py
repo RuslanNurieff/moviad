@@ -171,7 +171,11 @@ class CFA(VADModel):
 
         self.train()
         loss = training_args.loss_function(self(batch.to(self.device)), self.memory_bank, self.K, self.J, self.r, self.alpha, self.nu)
-        return loss
+        training_args.optimizer.zero_grad()
+        loss.backward()
+        training_args.optimizer.step()
+
+        return loss.item()
     
     def train_epoch(self, epoch: int, train_dataloader: torch.utils.data.DataLoader, training_args: TrainingArgs):
 
@@ -181,19 +185,14 @@ class CFA(VADModel):
             self.memory_bank = self.initialize_memory_bank(train_dataloader)
             self.memory_bank = nn.Parameter(self.memory_bank, requires_grad=False)
 
-        batch_loss = 0
+        avg_batch_loss = 0
+
+        # train the model
         for batch in tqdm(train_dataloader):
-            loss = self.train_step(batch, training_args)
-            batch_loss += loss.item()
+            avg_batch_loss += self.train_step(batch, training_args)
 
-            training_args.optimizer.zero_grad() 
-            loss.backward()
-            training_args.optimizer.step()
-
-        avg_batch_loss = batch_loss / len(train_dataloader)
-
+        avg_batch_loss /= len(train_dataloader)
         return avg_batch_loss
-
 
     def init_centroid(self, feature_extractor:CustomFeatureExtractor, data_loader:DataLoader):
         """

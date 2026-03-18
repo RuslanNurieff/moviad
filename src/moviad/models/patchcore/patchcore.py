@@ -261,72 +261,84 @@ class PatchCore(VADModel):
 
         if quantized:
             return torch.cdist(x.dequantize(), y.dequantize())
-        else:
-            return torch.cdist(x, y)
+        
+        return torch.cdist(x, y)
 
     def nearest_neighbors(self, embedding: Tensor, n_neighbors: int, memory_bank: torch.Tensor = None) -> tuple[Tensor, Tensor]:
         """
-        Nearest neighbors using brute force method and euclidean norm.
-
-        Args:
-            embedding (Tensor): Features to compare the distance with the memory bank.
-            n_neighbors (int): Number of neighbors to look at
-
-        Returns:
-            Tensor: Patch scores.
-            Tensor: Locations of the nearest neighbor(s).
+        Nearest neighbors using brute force method and euclidean norm, processed in chunks to save VRAM.
         """
         if memory_bank is None:
             memory_bank = self.memory_bank
 
-        distances = PatchCore.euclidean_distance(embedding, memory_bank, quantized=self.feature_extractor.quantized)
+        chunk_size = 1024  
+        patch_scores_list = []
+        locations_list = []
 
-        if n_neighbors == 1:
-            patch_scores, locations = distances.min(1)
-        else:
-            patch_scores, locations = distances.topk(k = n_neighbors, largest = False, dim = 1)
+        # Process the embeddings in smaller chunks
+        for i in range(0, embedding.size(0), chunk_size):
+            chunk = embedding[i : i + chunk_size]
+            
+            distances = PatchCore.euclidean_distance(
+                chunk, 
+                memory_bank, 
+                quantized=self.feature_extractor.quantized
+            )
+
+            if n_neighbors == 1:
+                scores, locs = distances.min(1)
+            else:
+                scores, locs = distances.topk(k=n_neighbors, largest=False, dim=1)
+
+            patch_scores_list.append(scores)
+            locations_list.append(locs)
+
+        # Concatenate the results back together
+        patch_scores = torch.cat(patch_scores_list, dim=0)
+        locations = torch.cat(locations_list, dim=0)
 
         return patch_scores, locations
 
-
     def nearest_neighbors_quantized(self, embedding: Tensor, n_neighbors: int) -> tuple[Tensor, Tensor]:
-        """
-        Nearest neighbors using brute force method and euclidean norm.
+        
+        device = self.device
+        embedding = embedding.to(device)
+        self.memory_bank = self.memory_bank.to(device)
 
-        Args:
-            embedding (Tensor): Features to compare the distance with the memory bank.
-            n_neighbors (int): Number of neighbors to look at
+        quantized_embedding = self.product_quantizer.encode(embedding).to(device)
 
-        Returns:
-            Tensor: Patch scores.
-            Tensor: Locations of the nearest neighbor(s).
-        """
-        self.memory_bank = self.memory_bank.to(self.device)
+        distances = PatchCore.euclidean_distance(
+            quantized_embedding,
+            self.memory_bank,
+            quantized=self.feature_extractor.quantized,
+        )
 
-        # Top 100 nearest neighbors
-        quantized_embedding = self.product_quantizer.encode(embedding)
-        quantized_embedding = quantized_embedding.to(self.device)
-        distances = PatchCore.euclidean_distance(quantized_embedding, self.memory_bank,
-                                                 quantized=self.feature_extractor.quantized)
+        _, top_locations = distances.topk(
+            k=1000, largest=False, dim=1    
+        )  
 
-        # Top 100 nearest neighbors
-        top_100_patch_scores, top_100_locations = distances.topk(k=100, largest=False, dim=1)
+        quantized_neighbors = self.memory_bank[top_locations]
 
-        # Decode the top 100 neighbors from the memory bank
-        top_100_neighbors = self.memory_bank[top_100_locations]
-        patch_scores = []
-        locations = []
-        for embedding_index in range(top_100_neighbors.size(0)):
-            neighbours = top_100_neighbors[embedding_index]
-            decoded_neighbors = self.product_quantizer.decode(neighbours)
-            embedding_value = embedding[embedding_index].unsqueeze(0)
-            decoded_neighbors = decoded_neighbors.to(self.device)
-            neighbour_distances = PatchCore.euclidean_distance(embedding_value, decoded_neighbors, quantized=False)
-            top_patch_score, top_location = neighbour_distances.topk(k=n_neighbors, largest=False, dim=1)
-            patch_scores.append(top_patch_score)
-            locations.append(top_location)
-        patch_scores = torch.cat(patch_scores, dim=0).squeeze()
-        locations = torch.cat(locations, dim=0).squeeze()
+        B, K, Dq = quantized_neighbors.shape
+
+        decoded_neighbors = self.product_quantizer.decode(
+            quantized_neighbors.view(-1, Dq)
+        ).view(B, K, -1).to(device)
+
+        embedding_expanded = embedding.unsqueeze(1)
+
+        exact_distances = PatchCore.euclidean_distance(
+            embedding_expanded,
+            decoded_neighbors,
+            quantized=False,
+        )
+
+        exact_distances = exact_distances.squeeze(1)  # [B, top_k]
+
+        patch_scores, locations = exact_distances.topk(
+            k=n_neighbors, largest=False, dim=1
+        )
+
         return patch_scores, locations
 
 

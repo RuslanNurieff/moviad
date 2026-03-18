@@ -94,5 +94,5 @@ class Replay(ContinualModel):
         for batch in train_dataloader:
             self.memory.add_samples(task_id=task_index, samples=batch)
 
-    def end_task(self, task_index, train_dataset):
+    def end_task(self, task_index: int, train_dataset, train_args):
         pass
