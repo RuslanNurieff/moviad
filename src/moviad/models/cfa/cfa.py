@@ -75,7 +75,7 @@ class CFA(VADModel):
         self.device = feature_extractor.device
 
         self.backbone = backbone
-        self.feature_maps_shape: tuple = None 
+        self.feature_maps_shape: tuple = None
 
         self.feature_extractor = feature_extractor
         self.feature_maps_channels = feature_maps_channels
@@ -176,14 +176,13 @@ class CFA(VADModel):
         training_args.optimizer.step()
 
         return loss.item()
-    
+
     def train_epoch(self, epoch: int, train_dataloader: torch.utils.data.DataLoader, training_args: TrainingArgs):
 
         self.train()
 
         if epoch == 0:
-            self.memory_bank = self.initialize_memory_bank(train_dataloader)
-            self.memory_bank = nn.Parameter(self.memory_bank, requires_grad=False)
+            self.memory_bank = nn.Parameter(self.initialize_memory_bank(train_dataloader), requires_grad=False)
 
         avg_batch_loss = 0
 
@@ -215,7 +214,7 @@ class CFA(VADModel):
             self.scale = p[0].size(2)
             phi_p = self.Descriptor(p)
             memory_bank = ((memory_bank * i) + torch.mean(phi_p, dim=0, keepdim=True).detach()) / (i+1)
-        
+
         return memory_bank
 
     def get_model_size_and_macs(self) -> tuple[dict, float]:
@@ -360,7 +359,7 @@ class CFA(VADModel):
     def gaussian_smooth_torch(x, sigma=4):
         if x.ndim == 2:
             x = x.unsqueeze(0) # if processing (working on) one image
-        
+
         blur = GaussianBlur(3, sigma)
         return blur(x)
 

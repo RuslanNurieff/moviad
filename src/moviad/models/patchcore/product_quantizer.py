@@ -1,5 +1,4 @@
 from typing import Union
-
 import faiss
 import numpy as np
 import torch
@@ -18,7 +17,7 @@ class ProductQuantizer:
         if isinstance(input, torch.Tensor):
             input = input.cpu().numpy()
         self.dim = dim
-        self.subspaces = self.__compute_optimal_m(input)
+        self.subspaces = self.__compute_optimal_m(input) if self.subspaces is None else self.subspaces
         self.centroid_bits = self.__compute_optimal_k(input)
 
         self.quantizer = faiss.IndexPQ(input.shape[dim], self.subspaces, self.centroid_bits)
@@ -87,3 +86,27 @@ class ProductQuantizer:
 
     def load(self, path: str) -> None:
         self.quantizer = faiss.read_index(path)
+
+    def get_size_mb(self) -> float:
+        index = self.quantizer
+
+        # Number of subquantizers and bits per subquantizer
+        M = index.pq.M
+        nbits = index.pq.nbits
+        D = index.d
+        ntotal = index.ntotal
+
+        # 1. Encoded vectors
+        codes_bytes = ntotal * index.sa_code_size()
+
+        # 2. PQ codebooks (centroids)
+        centroids_bytes = (
+            M
+            * (2 ** nbits)
+            * (D // M)
+            * 4  # float32
+        )
+
+        total_bytes = codes_bytes + centroids_bytes
+        return total_bytes / (1024 ** 2)
+

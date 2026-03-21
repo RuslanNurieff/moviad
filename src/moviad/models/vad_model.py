@@ -1,13 +1,23 @@
 from abc import abstractmethod
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 
 from moviad.models.training_args import TrainingArgs
 
 class VADModel(nn.Module):
 
-    @abstractmethod
-    def train_epoch(self, epoch: int, train_dataloader: torch.utils.data.DataLoader, training_args: TrainingArgs): ...
+    def train_epoch(
+        self, epoch, train_dataloader, training_args: TrainingArgs
+    ):
+        avg_batch_loss = 0
+
+        # train the model
+        for batch in tqdm(train_dataloader):
+            avg_batch_loss += self.train_step(batch, training_args)
+
+        avg_batch_loss /= len(train_dataloader)
+        return avg_batch_loss
 
     @abstractmethod
     def train_step(self, batch: torch.Tensor, training_args: TrainingArgs): ...

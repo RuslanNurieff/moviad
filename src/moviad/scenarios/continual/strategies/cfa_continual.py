@@ -21,13 +21,11 @@ class CFAContinual(Replay):
             train_dataset,
             batch_size=train_args.batch_size,
             shuffle=True,
-            num_workers=4   
+            num_workers=4
         )
 
         # initialize the memory bank for CFA or update it with the new task data
         if task_index == 0:
             self.vad_model.memory_bank = torch.nn.Parameter(self.vad_model.initialize_memory_bank(train_dataloader), requires_grad=False)
-        else: 
+        else:
             self.update_memory_bank(task_index, train_dataloader)
-    
-
