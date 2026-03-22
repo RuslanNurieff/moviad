@@ -2,6 +2,7 @@ import torch
 from tqdm import trange
 from tqdm import tqdm
 
+from moviad.datasets.vad_dataset import VADDataset
 from moviad.scenarios.continual.continual_model import ContinualModel
 from moviad.models.training_args import TrainingArgs
 from moviad.models.vad_model import VADModel
@@ -16,7 +17,7 @@ class Replay(ContinualModel):
         self.memory = Memory(memory_size=memory_size)
         self.replay_ratio = replay_ratio
 
-    def start_task(self):
+    def start_task(self, task_index: int, train_dataset: VADDataset, train_args: TrainingArgs = None):
         pass
 
     def train_task(self, task_index: int, train_dataset, eval_dataset, train_args, metrics, device, logger):
@@ -94,5 +95,5 @@ class Replay(ContinualModel):
         for batch in train_dataloader:
             self.memory.add_samples(task_id=task_index, samples=batch)
 
-    def end_task(self, task_index: int, train_dataset, train_args):
+    def end_task(self, task_index:int, train_dataset: VADDataset, train_args: TrainingArgs = None):
         pass

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import GaussianBlur
+from tqdm import tqdm
 
 from moviad.models.training_args import TrainingArgs
 from moviad.models.vad_model import VADModel
@@ -63,7 +64,7 @@ class Discriminator(torch.nn.Module):
 
 @dataclass
 class SimpleNetTrainArgs(TrainingArgs):
-    desc_lr = 0.0002
+    disc_lr = 0.0002
     adp_lr = 1e-4
     meta_epochs = 40
     aed_meta_epochs = 1
@@ -71,6 +72,7 @@ class SimpleNetTrainArgs(TrainingArgs):
     mix_noise = 1
     noise_std = 0.05
     dsc_margin = 0.8
+    weight_decay = 1e-5
 
     optimizer_disc = None
     optimizer_adp = None
@@ -80,8 +82,8 @@ class SimpleNetTrainArgs(TrainingArgs):
         if self.optimizer_disc is None:
             self.optimizer_disc = torch.optim.Adam(
                 model.discriminator.parameters(),
-                lr=self.desc_lr,
-                weight_decay=1e-5
+                lr=self.disc_lr,
+                weight_decay=self.weight_decay,
         )
         if self.optimizer_adp is None:
             self.optimizer_adp = torch.optim.AdamW(
@@ -91,8 +93,31 @@ class SimpleNetTrainArgs(TrainingArgs):
         if self.scheduler_disc is None:
             self.scheduler_disc = torch.optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer_disc,
-                (self.meta_epochs - self.aed_meta_epochs) * self.gan_epochs, self.desc_lr*.4
+                (self.meta_epochs - self.aed_meta_epochs) * self.gan_epochs, self.disc_lr*.4
             )
+    
+    def __to_dict__(self):
+
+        basic_dict = super().__to_dict__()
+
+        return {
+            **basic_dict,
+            "disc_lr": self.disc_lr,
+            "adp_lr": self.adp_lr,
+            "meta_epochs": self.meta_epochs,
+            "aed_meta_epochs": self.aed_meta_epochs,
+            "gan_epochs": self.gan_epochs,
+            "mix_noise": self.mix_noise,
+            "noise_std": self.noise_std,
+            "dsc_margin": self.dsc_margin,
+            "weight_decay": self.weight_decay,
+            "scheduler_disc": {
+                "type": self.scheduler_disc.__class__.__name__,
+                "T_max": self.scheduler_disc.T_max,
+                "eta_min": self.scheduler_disc.eta_min,
+            } if self.scheduler_disc else None,
+        }
+
 
 
 class SimpleNet(VADModel):
@@ -175,6 +200,16 @@ class SimpleNet(VADModel):
         training_args.scheduler_disc.step()
 
         return loss.item()
+
+    def train_epoch(self, epoch:int, train_dataloader: torch.utils.data.DataLoader, training_args: SimpleNetTrainArgs):
+
+        avg_batch_loss = 0
+        for e in range(training_args.gan_epochs):
+            for batch in tqdm(train_dataloader):
+                avg_batch_loss += self.train_step(batch, training_args)
+
+        avg_batch_loss /= len(train_dataloader) * training_args.gan_epochs
+        return avg_batch_loss
 
     def forward(self, batch):
         """Infer score and mask for a batch of images."""

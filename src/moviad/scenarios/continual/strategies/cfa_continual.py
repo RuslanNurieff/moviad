@@ -8,8 +8,9 @@ from moviad.utilities.evaluation.metrics import Metric
 
 class CFAContinual(Replay):
 
-    def __init__(self, cfa_model:CFA, memory_size: int = 300, replay_ratio=0.5):
+    def __init__(self, cfa_model:CFA, fix_centroids:bool = False, memory_size: int = 300, replay_ratio=0.5):
         super().__init__(cfa_model, memory_size, replay_ratio)
+        self.fix_centroids = fix_centroids
 
     def update_memory_bank(self, task_index: int, train_dataloader: torch.utils.data.DataLoader):
         task_memory_bank = self.vad_model.initialize_memory_bank(train_dataloader)
@@ -27,5 +28,5 @@ class CFAContinual(Replay):
         # initialize the memory bank for CFA or update it with the new task data
         if task_index == 0:
             self.vad_model.memory_bank = torch.nn.Parameter(self.vad_model.initialize_memory_bank(train_dataloader), requires_grad=False)
-        else:
+        elif not self.fix_centroids:
             self.update_memory_bank(task_index, train_dataloader)
