@@ -39,5 +39,5 @@ class FineTuning(ContinualModel):
         trainer.train()
         
 
-    def end_task(self):
+    def end_task(self, task_index=None, train_dataset=None):
         pass

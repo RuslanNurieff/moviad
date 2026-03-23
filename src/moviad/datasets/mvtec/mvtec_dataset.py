@@ -163,7 +163,8 @@ class MVTecDataset(VADDataset):
                 anomalous images in the dataset (e.g. image: '000.png', mask: '000.png' or '000_mask.png')."""
                 raise Exception(msg)
 
-        self.samples = samples[samples.split == self.split].reset_index(drop=True)
+        split_str = self.split.value if hasattr(self.split, 'value') else self.split
+        self.samples = samples[samples.split == split_str].reset_index(drop=True)
 
         # if not self.use_original_splits:
         #     self.split_dataset(train_size=0.7, valid_size=0.2)
