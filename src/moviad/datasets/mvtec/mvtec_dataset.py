@@ -1,12 +1,5 @@
 import math
-from enum import Enum
-from typing import Optional
-
-from numpy.ma.core import indices
-from torchvision.transforms.functional import InterpolationMode
-
 from pathlib import Path
-import glob
 
 import numpy as np
 import pandas as pd
@@ -16,7 +9,7 @@ from torchvision.transforms import transforms
 
 from moviad.datasets.vad_dataset import VADDataset
 from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
-from moviad.utilities.configurations import TaskType, Split, LabelName
+from moviad.utilities.configurations import Split, LabelName
 from moviad.datasets.dataset_arguments import DatasetArguments
 
 IMG_EXTENSIONS = (".png", ".PNG")
@@ -69,27 +62,6 @@ class MVTecDataset(VADDataset):
 
         self.root_category = Path(self.dataset_arguments.dataset_path) / Path(self.category)
         self.samples: pd.DataFrame = None
-
-        if self.dataset_arguments.image_transform_list:
-            self.transform_image = transforms.Compose(self.dataset_arguments.image_transform_list)
-        else:
-            self.transform_image = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Resize(self.dataset_arguments.img_size, antialias=True),
-                ]
-            )
-
-        self.transform_mask = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Resize(
-                    self.dataset_arguments.gt_mask_size,
-                    antialias=True,
-                    interpolation=InterpolationMode.NEAREST,
-                ),
-            ]
-        )
 
         self.load_dataset()
 

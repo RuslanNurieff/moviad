@@ -10,7 +10,6 @@ from abc import abstractmethod
 import torch
 from torch.nn import functional as F
 from sklearn.random_projection import SparseRandomProjection
-import numpy as np
 from tqdm import tqdm
 
 

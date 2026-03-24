@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 #from memory_profiler import profile
-from torch import Tensor, nn
+from torch import Tensor, autocast, nn
 from tqdm import tqdm
 
 from .product_quantizer import ProductQuantizer
@@ -186,8 +186,9 @@ class PatchCore(VADModel):
 
             print("Embedding Extraction:")
             for batch in tqdm(iter(train_dataloader)):
-                embedding = self(batch.to(self.device))
-                embeddings.append(embedding)
+                with autocast(device_type=self.device.type, enabled=True):
+                    embedding = self(batch.to(self.device))
+                    embeddings.append(embedding)
 
             embeddings = torch.cat(embeddings, dim = 0)
             torch.cuda.empty_cache()

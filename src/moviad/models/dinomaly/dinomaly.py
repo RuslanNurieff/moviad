@@ -41,6 +41,12 @@ class DinomalyTrainArgs(TrainingArgs):
 
         if not self.loss_function:
             self.loss_function = global_cosine_hm_percent
+
+    def __to_dict__(self):
+
+        return {
+            "total_iters": self.total_iters,
+        }
     
 class Dinomaly(VADModel):
     def __init__(
@@ -56,7 +62,7 @@ class Dinomaly(VADModel):
         
         self.encoder_name = encoder_name
 
-        encoder = timm.create_model(self.encoder_name, pretrained=True)
+        encoder = timm.create_model(self.encoder_name, pretrained=True, img_size=(224, 224))
 
         def prepare_tokens(x):
             x = encoder.patch_embed(x)
