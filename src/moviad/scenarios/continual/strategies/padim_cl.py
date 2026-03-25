@@ -89,7 +89,7 @@ class PadimCLUnimodal(ContinualModel):
         self.s1 = None  # (C, H*W)
         self.s2 = None  # (C, C, H*W)
 
-    def start_task(self, train_args: TrainingArgs = None):
+    def start_task(self, task_index=None, train_dataset=None, train_args=None):
         pass
 
     def train_task(self, task_index, train_dataset, eval_dataset,
@@ -130,7 +130,7 @@ class PadimCLMultimodal(ContinualModel):
         # task_id -> (mean, cov) where mean: (C, H*W), cov: (C, C, H*W)
         self.task_gaussians = {}
 
-    def start_task(self, train_args: TrainingArgs = None):
+    def start_task(self, task_index=None, train_dataset=None, train_args=None):
         pass
 
     def train_task(self, task_index, train_dataset, eval_dataset,
@@ -296,7 +296,7 @@ class PadimLiteCLUnimodal(ContinualModel):
         self.s1 = None  # (C, H*W)
         self.s2_diag = None  # (C, H*W)
 
-    def start_task(self, train_args: TrainingArgs = None):
+    def start_task(self, task_index=None, train_dataset=None, train_args=None):
         pass
 
     def train_task(self, task_index, train_dataset, eval_dataset,
@@ -330,7 +330,7 @@ class PadimLiteCLMultimodal(ContinualModel):
         # task_id -> (mean, var) where mean: (C, H*W), var: (C, H*W)
         self.task_gaussians = {}
 
-    def start_task(self, train_args: TrainingArgs = None):
+    def start_task(self, task_index=None, train_dataset=None, train_args=None):
         pass
 
     def train_task(self, task_index, train_dataset, eval_dataset,
