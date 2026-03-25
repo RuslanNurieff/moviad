@@ -56,7 +56,7 @@ class VISADataset(VADDataset):
 
             mask = None
             if self.df.iloc[index]["label"] == "normal":
-                mask = torch.zeros((1, self.resize_shape[1], self.resize_shape[0]))
+                mask = torch.zeros((1, self.dataset_arguments.gt_mask_size[0], self.dataset_arguments.gt_mask_size[1]))
             else:
                 mask_path = os.path.join(self.dataset_root, self.df.iloc[index]["mask"])
                 mask = Image.open(mask_path).convert("L")

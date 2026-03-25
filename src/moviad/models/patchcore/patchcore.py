@@ -37,10 +37,10 @@ class PatchCore(VADModel):
         """
         Constructor of the patch-core model
 
-        Args: 
+        Args:
             device (torch.device): device to be used during the training
             input_size (tuple[int]): size of the input images
-            feature_extractor (CustomFeatureExtractor): feature extractor to be used 
+            feature_extractor (CustomFeatureExtractor): feature extractor to be used
             num_neighbors (int): number of neighbors to be considered in the k-nn search
         """
 
@@ -54,7 +54,7 @@ class PatchCore(VADModel):
         self.anomaly_map_generator = AnomalyMapGenerator()
         self.memory_bank_size = memory_bank_size
         self.memory_bank: Tensor
-        
+
         self.apply_quantization = apply_quantization
         if apply_quantization:
             self.product_quantizer = ProductQuantizer()
@@ -67,6 +67,14 @@ class PatchCore(VADModel):
     def to(self, device: torch.device):
         super().to(device)
         self.feature_extractor.to(device)
+
+        if hasattr(self, "memory_bank"):
+            if type(self.memory_bank) is dict:
+                for k,v in self.memory_bank.items():
+                    self.memory_bank[k] = v.to(self.device)
+            else:
+                self.memory_bank = self.memory_bank.to(self.device)
+
         self.device = device
 
     def extract_embedding(self, batch:torch.Tensor):
@@ -117,13 +125,6 @@ class PatchCore(VADModel):
         image_size = input_tensor.shape[2:]
 
         #extract the features for the input tensor
-        if hasattr(self, "memory_bank"):
-            if type(self.memory_bank) is dict:
-                for k,v in self.memory_bank.items():
-                    self.memory_bank[k] = v.to(self.device)
-            else: 
-                self.memory_bank = self.memory_bank.to(self.device)
-
         embedding, batch_size, width, height = self.extract_embedding(input_tensor)
 
         #embedding shape: (#num_patches, emb_dim)
@@ -149,7 +150,7 @@ class PatchCore(VADModel):
         height: int,
         image_size: tuple,
     ) -> tuple[Tensor, Tensor]:
-        
+
         if self.feature_extractor.quantized:
             embedding = torch.int_repr(embedding).to(torch.float64)
 
@@ -162,7 +163,7 @@ class PatchCore(VADModel):
         # print(patch_scores.shape)
         # print("Locations" + str(locations.shape))
 
-        # reshape to batch dimension 
+        # reshape to batch dimension
         patch_scores = patch_scores.reshape((batch_size, -1))
         locations = locations.reshape((batch_size, -1))
 
@@ -204,12 +205,42 @@ class PatchCore(VADModel):
                 coreset = self.product_quantizer.encode(coreset)
 
             self.memory_bank = coreset
+    
+    def train_chunk(
+        self, train_dataloader, training_args: TrainingArgs
+    ):
+        embeddings = []
+
+        with torch.no_grad():
+
+            print("Embedding Extraction:")
+            for batch in tqdm(iter(train_dataloader)):
+                with autocast(device_type=self.device.type, enabled=True):
+                    embedding = self(batch.to(self.device))
+                    embeddings.append(embedding)
+
+            embeddings = torch.cat(embeddings, dim = 0)
+            torch.cuda.empty_cache()
+
+            total_embbeddings = torch.cat([embeddings, self.memory_bank], dim=0) if hasattr(self, "memory_bank") else embeddings
+
+            #apply coreset reduction
+            print("Coreset Extraction:")
+            coreset = self.coreset_extractor.extract_coreset(total_embbeddings)
+
+            if self.apply_quantization:
+                assert self.product_quantizer is not None, "Product Quantizer not initialized"
+
+                self.product_quantizer.fit(coreset)
+                coreset = self.product_quantizer.encode(coreset)
+
+            self.memory_bank = coreset
 
     def generate_embedding(self, features: dict[str, Tensor]) -> Tensor:
         """Generate embedding from hierarchical feature map.
 
         Args:
-            features: dict[str:Tensor]: Hierarchical feature map from a CNN 
+            features: dict[str:Tensor]: Hierarchical feature map from a CNN
 
         Returns:
             Embedding vector [Tensor]
@@ -262,7 +293,7 @@ class PatchCore(VADModel):
 
         if quantized:
             return torch.cdist(x.dequantize(), y.dequantize())
-        
+
         return torch.cdist(x, y)
 
     def nearest_neighbors(self, embedding: Tensor, n_neighbors: int, memory_bank: torch.Tensor = None) -> tuple[Tensor, Tensor]:
@@ -272,17 +303,17 @@ class PatchCore(VADModel):
         if memory_bank is None:
             memory_bank = self.memory_bank
 
-        chunk_size = 1024  
+        chunk_size = 1024
         patch_scores_list = []
         locations_list = []
 
         # Process the embeddings in smaller chunks
         for i in range(0, embedding.size(0), chunk_size):
             chunk = embedding[i : i + chunk_size]
-            
+
             distances = PatchCore.euclidean_distance(
-                chunk, 
-                memory_bank, 
+                chunk,
+                memory_bank,
                 quantized=self.feature_extractor.quantized
             )
 
@@ -301,7 +332,7 @@ class PatchCore(VADModel):
         return patch_scores, locations
 
     def nearest_neighbors_quantized(self, embedding: Tensor, n_neighbors: int) -> tuple[Tensor, Tensor]:
-        
+
         device = self.device
         embedding = embedding.to(device)
         self.memory_bank = self.memory_bank.to(device)
@@ -315,8 +346,8 @@ class PatchCore(VADModel):
         )
 
         _, top_locations = distances.topk(
-            k=1000, largest=False, dim=1    
-        )  
+            k=1000, largest=False, dim=1
+        )
 
         quantized_neighbors = self.memory_bank[top_locations]
 
@@ -413,14 +444,14 @@ class PatchCore(VADModel):
             return patch_scores.amax(1)
 
         batch_size, num_patches = patch_scores.shape
-        max_patches = torch.argmax(patch_scores, dim=1)  
+        max_patches = torch.argmax(patch_scores, dim=1)
         max_patches_features = embedding.reshape(batch_size, num_patches, -1)[torch.arange(batch_size), max_patches]
 
-        score = patch_scores[torch.arange(batch_size), max_patches] 
-        nn_index = locations[torch.arange(batch_size), max_patches] 
-        nn_sample = memory_bank[nn_index, :] 
+        score = patch_scores[torch.arange(batch_size), max_patches]
+        nn_index = locations[torch.arange(batch_size), max_patches]
+        nn_sample = memory_bank[nn_index, :]
 
-        memory_bank_effective_size = memory_bank.shape[0] 
+        memory_bank_effective_size = memory_bank.shape[0]
         if self.apply_quantization:
             _, support_samples = self.nearest_neighbors_quantized(
                 nn_sample,
@@ -435,31 +466,31 @@ class PatchCore(VADModel):
 
         # 4. Find the distance of the patch features to each of the support samples
         distances = PatchCore.euclidean_distance(max_patches_features.unsqueeze(1), memory_bank[support_samples], self.feature_extractor.quantized)
-        
+
         # 5. Apply Temperature Scaling (sqrt of embedding dimensions)
         D = torch.sqrt(torch.tensor(embedding.shape[-1], dtype=torch.float32, device=distances.device))
         scaled_distances = distances.squeeze(1) / D
-        
+
         # Apply softmax to the scaled distances
         weights = (1 - F.softmax(scaled_distances, dim=1))[..., 0]
 
         # 6. Apply the weight factor to the score
         return weights * score
 
-    def save(self, output_path):
+    def save_model(self, save_path: str):
         """
         Save the Patchcore model
 
         Parameters:
         ----------
-            output_path (str): where the model will be saved
+            save_path (str): where the model will be saved
         """
         self.register_buffer("memory_bank", Tensor())
         model_state_dict = self.state_dict()
         if self.apply_quantization:
             assert self.product_quantizer is not None
-            self.product_quantizer.save(output_path + "/product_quantizer.bin")
-        torch.save(model_state_dict, output_path)
+            self.product_quantizer.save(save_path + "/product_quantizer.bin")
+        torch.save(model_state_dict, save_path)
 
     def load(self, model_state_dict_patch, quantizer_state_dict_path):
         """
@@ -496,6 +527,8 @@ class PatchCore(VADModel):
         # load the memory bank
         self.memory_bank = state_dict["memory_bank"]
 
+    def reset_model(self):
+        self.memory_bank = None
 
     def save_anomaly_map(self, dirpath, anomaly_map, pred_score, filepath, x_type, mask):
         """
@@ -573,5 +606,3 @@ class PatchCore(VADModel):
     #     total_size = sizes["feature_extractor"]["size"] + sizes["memory_bank"]["size"]
 
     #     return sizes, total_size
-
-    

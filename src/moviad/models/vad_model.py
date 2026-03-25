@@ -21,3 +21,13 @@ class VADModel(nn.Module):
 
     @abstractmethod
     def train_step(self, batch: torch.Tensor, training_args: TrainingArgs): ...
+
+    @abstractmethod
+    def train_chunk(self, train_dataloader: torch.utils.data.DataLoader, training_args: TrainingArgs): 
+        pass
+
+    def reset_model(self):
+        pass
+
+    def save_model(self, save_path: str):
+        pass
