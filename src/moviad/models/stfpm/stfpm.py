@@ -12,13 +12,12 @@ from moviad.models.stfpm.loss_functions import stfpm_loss
 
 @dataclass
 class STFPMTrainArgs(TrainingArgs):
+    lr = 0.4
 
     def init_train(self, model: VADModel):
         if self.optimizer is None:
             self.optimizer = torch.optim.SGD(
-                #model.parameters(), lr=0.4, weight_decay=1e-4, momentum=0.9
-                #model.parameters(), lr=0.04, weight_decay=1e-4, momentum=0.9
-                model.parameters(), lr=0.01, weight_decay=1e-4, momentum=0.9
+                model.parameters(), lr=self.lr, weight_decay=1e-4, momentum=0.9
             )
         if self.loss_function is None:
             self.loss_function = stfpm_loss
@@ -46,12 +45,12 @@ class STFPM(VADModel):
             return teacher_features, student_features
         else:
             student_features = self.student(batch)
-            teacher_features = self.teacher(batch) 
+            teacher_features = self.teacher(batch)
 
             return self.post_process(
                 teacher_features, student_features, batch.shape[2:]
             )
-        
+
     def to(self, device: torch.device):
         super().to(device)
         self.teacher.to(device)

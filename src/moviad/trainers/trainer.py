@@ -69,7 +69,7 @@ class Trainer:
         self.train_args.init_train(self.model)
 
         if self.logger:
-            self.logger.config.update(self.train_args.__dict__)
+            self.logger.config.update(self.train_args.__to_dict__())
             
         best_metrics = {metric.name: 0.0 for metric in self.metrics}
 
@@ -113,3 +113,8 @@ class Trainer:
                         self.logger.log({
                             f"{self.logging_prefix}eval/{metric_name}": value for metric_name, value in results.items()
                         }, step=epoch+1)
+
+        if self.saving_criteria is None and self.save_path is not None:
+            print("Saving model...")
+            self.model.save_model()
+            print(f"Model saved to {self.save_path}")

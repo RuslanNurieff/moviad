@@ -1,3 +1,4 @@
+from moviad.datasets.vad_dataset import VADDataset
 from moviad.scenarios.continual.continual_model import ContinualModel
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.training_args import TrainingArgs
@@ -20,11 +21,12 @@ class PatchCoreCL(ContinualModel):
         self.vad_model.coreset_extractor.k = self.n_samples_per_task
 
         for task_id in self.vad_model.memory_bank:
+            print("Rebalancing Memory Bank for Task", task_id, "with new sample limit:", self.n_samples_per_task)
             embeddings = self.vad_model.memory_bank[task_id]
             coreset = self.vad_model.coreset_extractor.extract_coreset(embeddings)
             self.vad_model.memory_bank[task_id] = coreset
 
-    def start_task(self, train_args: TrainingArgs = None):
+    def start_task(self, task_index: int, train_dataset: VADDataset, train_args: TrainingArgs = None):
         self._rebalance_memory_bank()
 
     def train_task(self, task_index: int, train_dataset, eval_dataset, metrics, device, logger = None, train_args:TrainingArgs = None):
@@ -33,16 +35,16 @@ class PatchCoreCL(ContinualModel):
             train_dataset,
             batch_size=train_args.batch_size,
             shuffle=True,
-            num_workers=4   
+            num_workers=4
         )
-        
+
         embeddings = []
 
         with torch.no_grad():
 
             print("Embedding Extraction:")
             for batch in tqdm(iter(train_dataloader)):
-                embedding,_,_,_ = self.vad_model.extract_embedding(batch)
+                embedding = self.vad_model(batch)
                 embeddings.append(embedding)
 
             embeddings = torch.cat(embeddings, dim = 0)
@@ -50,54 +52,63 @@ class PatchCoreCL(ContinualModel):
 
             #apply coreset reduction
             print("Coreset Extraction:")
-            coreset = self.vad_model.coreset_extractor.extract_coreset(embeddings[:10])
+            coreset = self.vad_model.coreset_extractor.extract_coreset(embeddings)
 
             self.vad_model.memory_bank[task_index] = coreset
-        
 
-    def end_task(self):
+
+    def end_task(self, task_index:int, train_dataset: VADDataset, train_args: TrainingArgs = None):
         pass
 
-    def forward(self, batch: torch.Tensor):
-        
-        anomaly_maps = []
-        pred_scores = []
+    def forward(self, batch: torch.Tensor):                                                                                                                                                     
+                                                                                                                                                                                            
+      anomaly_maps, pred_scores, mean_distances = [], [], []                                                                                                                                  
+      embedding, batch_size, width, height = self.vad_model.extract_embedding(batch)                                                                                                          
+      image_size = batch.shape[2:]                                                                                                                                                            
 
-        for task_id in self.vad_model.memory_bank:
-            anomaly_maps, pred_scores = [], []
-            task_memory_bank = self.vad_model.memory_bank[task_id]
-            
-            embedding, batch_size, width, height = self.vad_model.extract_embedding(batch)
-        
-            batch_anomaly_maps, scores = self.vad_model.calculate_anomaly_maps_scores(
-                embedding=embedding,
-                memory_bank=task_memory_bank,
-                batch_size=batch.shape[0],
-                width=width,
-                height=height,
-                image_size=batch.shape[2:]
-            )
+      for task_id in self.vad_model.memory_bank:
+          task_memory_bank = self.vad_model.memory_bank[task_id].to(self.vad_model.device)
 
-            anomaly_maps.append(batch_anomaly_maps)
-            pred_scores.append(scores)
+          # Compute NN distances once per task
+          patch_scores, locations = self.vad_model.nearest_neighbors(
+              embedding=embedding, n_neighbors=1, memory_bank=task_memory_bank
+          )
 
-        anomaly_maps = torch.stack(anomaly_maps, dim=0)
-        anomaly_scores = torch.stack(pred_scores, dim=0)
-   
-        num_tasks = len(self.vad_model.memory_bank)
+          # Mean NN distance per sample — used for task identification (matches original criterion)
+          mean_dist = patch_scores.reshape(batch_size, -1).mean(dim=1)  # (batch_size,)
+          mean_distances.append(mean_dist)
 
-        anomaly_scores = anomaly_scores.T
-        anomaly_maps = anomaly_maps.permute(1,0,2,3,4)
+          # Reshape for score and map computation
+          patch_scores_2d = patch_scores.reshape(batch_size, -1)       # (batch, H*W)
+          locations_2d   = locations.reshape(batch_size, -1)           # (batch, H*W)
 
-        # for each sample in the batch, search for the task memory bank that gives the minimum AD score 
-        min_scores = anomaly_scores.argmin(dim=1)
-        batch_idx = torch.arange(anomaly_scores.size(0))
+          # Anomaly score
+          pred_score = self.vad_model.compute_anomaly_score(
+              patch_scores_2d, locations_2d, embedding, task_memory_bank
+          )
 
-        min_anomaly_maps = anomaly_maps[batch_idx, min_scores]
-        min_scores = anomaly_scores[batch_idx, min_scores]
+          # Anomaly map
+          patch_scores_spatial = patch_scores_2d.reshape(batch_size, 1, width, height)
+          batch_anomaly_maps = self.vad_model.anomaly_map_generator(
+              patch_scores_spatial, image_size=image_size
+          )
 
-        return min_anomaly_maps, min_scores
+          anomaly_maps.append(batch_anomaly_maps)
+          pred_scores.append(pred_score)
 
+      anomaly_maps    = torch.stack(anomaly_maps,    dim=0)  # (n_tasks, batch, 1, H, W)
+      anomaly_scores  = torch.stack(pred_scores,     dim=0)  # (n_tasks, batch)
+      mean_distances  = torch.stack(mean_distances,  dim=0)  # (n_tasks, batch)
 
+      mean_distances = mean_distances.T                       # (batch, n_tasks)
+      anomaly_scores = anomaly_scores.T                       # (batch, n_tasks)
+      anomaly_maps   = anomaly_maps.permute(1, 0, 2, 3, 4)   # (batch, n_tasks, 1, H, W)
 
+      # Select the task with the minimum MEAN NN distance (not anomaly score)
+      min_task_idx = mean_distances.argmin(dim=1)             # (batch,)
+      batch_idx    = torch.arange(batch_size, device=batch.device)
 
+      min_anomaly_maps = anomaly_maps[batch_idx, min_task_idx]   # (batch, 1, H, W)
+      min_scores       = anomaly_scores[batch_idx, min_task_idx] # (batch,)
+
+      return min_anomaly_maps, min_scores

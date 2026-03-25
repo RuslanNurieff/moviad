@@ -4,8 +4,11 @@ from dataclasses import dataclass
 from typing import Optional
 
 from torch.utils.data.dataset import Dataset
+from torchvision import transforms
+
 from moviad.utilities.configurations import TaskType, Split
 from moviad.datasets.dataset_arguments import DatasetArguments
+from torchvision.transforms.functional import InterpolationMode
 
 class VADDataset(Dataset):
     """
@@ -28,8 +31,26 @@ class VADDataset(Dataset):
         self.category = category
         self.split = split
 
-    @abstractmethod
-    def load_dataset(self): ...
+        if self.dataset_arguments.image_transform_list:
+            self.transform_image = transforms.Compose(self.dataset_arguments.image_transform_list)
+        else:
+            self.transform_image = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Resize(self.dataset_arguments.img_size, antialias=True),
+                ]
+            )
+
+        self.transform_mask = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize(
+                    self.dataset_arguments.gt_mask_size,
+                    antialias=True,
+                    interpolation=InterpolationMode.NEAREST,
+                ),
+            ]
+        )
 
     @abstractmethod
     def is_loaded(self) -> bool: ...

@@ -15,7 +15,7 @@ def test_patchcore_fine_tuning():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], frozen=True)    
+    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], frozen=True)
     model = PatchCore(feature_extractor=feature_extractor)
 
     args = {
@@ -46,7 +46,7 @@ def test_patchcore_fine_tuning():
             ProAuc(MetricLvl.PIXEL),
         ],
         training_args=TrainingArgs(
-            batch_size = 32, 
+            batch_size = 32,
             epochs = 1
         ),
         logger=wandb
@@ -75,7 +75,7 @@ def test_patchcore_multi_task():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], frozen=True)    
+    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], frozen=True)
     model = PatchCore(feature_extractor=feature_extractor)
 
     args = {
@@ -92,12 +92,12 @@ def test_patchcore_multi_task():
 
     trainer = Trainer(
         training_args = TrainingArgs(
-            batch_size = 32, 
+            batch_size = 32,
             epochs = 1
         ),
-        model = model, 
-        train_dataset=train_dataset, 
-        eval_dataset=test_dataset, 
+        model = model,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
         device=device,
         metrics=[
             RocAuc(MetricLvl.IMAGE),
@@ -127,11 +127,11 @@ def test_patchcore_continual():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], device, frozen=True)    
+    feature_extractor = CustomFeatureExtractor("wide_resnet50_2", ["layer1", "layer2", "layer3"], device, frozen=True)
     model = PatchCore(feature_extractor=feature_extractor)
 
     args = {
-        "dataset_path" : "/mnt/mydisk/manuel_barusco/datasets/mvtec",
+        "dataset_path" : "/mnt/disk1/manuel_barusco/datasets/mvtec",
         "img_size" : (256, 256),
         "gt_mask_size" : (256, 256),
         "image_transform_list" : None
@@ -158,7 +158,7 @@ def test_patchcore_continual():
             ProAuc(MetricLvl.PIXEL),
         ],
         training_args=TrainingArgs(
-            batch_size = 32, 
+            batch_size = 32,
             epochs = 1
         ),
         logger=wandb

@@ -1,106 +1,73 @@
-from typing import Optional
+import glob
+import os
+import pandas as pd
 
 import numpy as np
-import pandas as pd
 import torch
-from torchvision import transforms
-from torchvision.transforms import InterpolationMode
+import torchvision.transforms as transforms
+from PIL import Image
 
-from moviad.datasets.vad_dataset import IadDataset
-from moviad.datasets.exceptions.exceptions import DatasetTooSmallToContaminateException
-from moviad.datasets.visa.visa_data import VisaData, VisaAnomalyClass
-from moviad.datasets.visa.visa_dataset_configurations import VisaDatasetCategory
+from moviad.datasets.vad_dataset import VADDataset
+from moviad.datasets.dataset_arguments import DatasetArguments
 from moviad.utilities.configurations import Split, LabelName
 
+CATEGORIES = (
+    "candle",
+    "capsules",
+    "cashew",
+    "chewinggum",
+    "fryum",
+    "macaroni1",
+    "macaroni2",
+    "pcb1",
+    "pcb2",
+    "pcb3",
+    "pcb4",
+    "pipe_fryum",
+)
 
-class VisaDataset(IadDataset):
-    root_path: str
-    csv_path: str
-    split: Split
-    class_name: str
-    data: VisaData
-
-    def __init__(self, root_path: str, csv_path: str, split: Split, class_name: str,
-                 gt_mask_size: Optional[tuple] = None, image_size=(224,224), transform=None):
-        self.root_path = root_path
-        self.csv_path = csv_path
-        self.split = split
-        self.transform = transform
-        self.class_name = class_name
-        self.gt_mask_size = gt_mask_size
-        self.dataframe = pd.read_csv(csv_path)
-        self.dataframe = self.dataframe[self.dataframe["split"] == split.value]
-        self.dataframe = self.dataframe[self.dataframe["object"] == class_name]
-        self.category = class_name
-
-        if transform is None:
-            self.transform = transforms.Compose([
-                transforms.Resize(image_size),
-                transforms.PILToTensor(),
-                transforms.Resize(
-                    image_size,
-                    antialias=True,
-                    interpolation=InterpolationMode.NEAREST,
-                ),
-                transforms.ConvertImageDtype(torch.float32),
-            ])
-
-    def apply_config(self, category: str):
+class VISADataset(VADDataset):
+    def __init__(
+        self,
+        dataset_arguments: DatasetArguments,
+        category: str,
+        split: Split | list[Split]
+    ):
+        super().__init__(dataset_arguments, category, split)
         self.category = category
+        self.dataset_root = self.dataset_arguments.dataset_path 
 
-    def load_dataset(self):
-        self.__load__()
-
-    def compute_contamination_ratio(self) -> float:
-        if self.data is None or self.data.data is None:
-            raise ValueError("Dataset is not loaded")
-        return self.data.compute_contamination_ratio()
-
-    def contaminate(self, source: 'IadDataset', ratio: float, seed: int = 42) -> int:
-        if type(source) != VisaDataset:
-            raise ValueError("Dataset should be of type VisaDataset")
-        if self.data is None or self.data.data is None:
-            raise ValueError("Destination dataset is not loaded")
-        if source.data is None or source.data.data is None:
-            raise ValueError("Source dataset is not loaded")
-
-        torch.manual_seed(seed)
-        contamination_set_size = int(len(self.data) * ratio)
-        contaminated_entries = [entry for entry in source.data.data if entry.label == VisaAnomalyClass.ANOMALY]
-        if len(contaminated_entries) < contamination_set_size:
-            raise DatasetTooSmallToContaminateException(f"Source dataset does not have enough contaminated entries to contaminate the dataset. "
-                             f"Found {len(contaminated_entries)} entries, but needed {contamination_set_size} entries")
-        contaminated_entries = np.random.choice(contaminated_entries, contamination_set_size, replace=False).tolist()
-        self.data.images.extend(contaminated_entries)
-        source.data.data = [entry for entry in source.data.data if entry not in contaminated_entries]
-        return contamination_set_size
-
-
-    def __load__(self):
-        self.data = VisaData(meta=self.dataframe, data=self.dataframe)
-        self.data.load_images(self.root_path, split=self.split)
+        self.df = pd.read_csv(os.path.join(self.dataset_root, "split_csv", "1cls.csv"))
+        self.df = self.df[(self.df["object"]==category) & (self.df["split"]==split)]
 
     def __len__(self):
-        return len(self.data.images)
+        return len(self.df)
 
-    def __getitem__(self, item):
-        image_data_entry = self.data.images[item]
-        image = image_data_entry.image
-        mask = image_data_entry.mask
+    def __getitem__(self, index):
+        path = os.path.join(self.dataset_root, self.df.iloc[index]["image"])
+        image = self.transform_image(
+            Image.open(path).convert("RGB")
+        )
+        label = LabelName.NORMAL if self.df.iloc[index]["label"] == "normal" else LabelName.ABNORMAL
 
         if self.split == Split.TRAIN:
-            if self.transform:
-                image = self.transform(image)
             return image
+        else:
 
-        if self.split == Split.TEST:
-            label = LabelName.NORMAL.value if image_data_entry.label == VisaAnomalyClass.NORMAL else LabelName.ABNORMAL.value
-            path = str(image_data_entry.image_path)
-            if mask is not None:
-                mask = self.transform(mask)
+            mask = None
+            if self.df.iloc[index]["label"] == "normal":
+                mask = torch.zeros((1, self.dataset_arguments.gt_mask_size[0], self.dataset_arguments.gt_mask_size[1]))
             else:
-                mask = torch.zeros(1, *self.gt_mask_size, dtype=torch.float32)
-            if self.transform:
-                image = self.transform(image)
+                mask_path = os.path.join(self.dataset_root, self.df.iloc[index]["mask"])
+                mask = Image.open(mask_path).convert("L")
+                mask = self.transform_mask(mask)
+
+                mask = torch.where(
+                    mask > 0.0, torch.ones_like(mask), torch.zeros_like(mask)
+                )
 
             return image, label, mask, path
+
+    @staticmethod
+    def get_categories() -> list:
+        return list(CATEGORIES)
