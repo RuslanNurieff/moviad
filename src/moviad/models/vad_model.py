@@ -29,5 +29,8 @@ class VADModel(nn.Module):
     def reset_model(self):
         pass
 
-    def save_model(self, save_path: str):
+    def save(self, save_path: str):
+        pass
+
+    def get_model_size(self):
         pass

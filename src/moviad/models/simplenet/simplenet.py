@@ -244,3 +244,24 @@ class SimpleNet(VADModel):
             heatmaps = blur(upsampled_scores)
 
             return heatmaps, image_scores
+        
+    def get_model_size(self):
+        def count_params(module):
+            if module is None:
+                return 0
+            return sum(p.numel() for p in module.parameters())
+        
+        def params_to_mb(params):
+            bytes_per_param = 4 
+            return (params * bytes_per_param) / (1024 ** 2)
+
+        feature_extractor_params = count_params(self.feature_extractor.model)
+        adaptor_params = count_params(self.adaptor)
+        discriminator_params = count_params(self.discriminator)
+
+        return {
+            "feature_extractor": params_to_mb(feature_extractor_params),
+            "adaptor": params_to_mb(adaptor_params),
+            "discriminator": params_to_mb(discriminator_params) ,
+            "total": params_to_mb(feature_extractor_params + adaptor_params + discriminator_params)
+        }

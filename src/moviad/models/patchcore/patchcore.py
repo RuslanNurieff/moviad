@@ -205,7 +205,7 @@ class PatchCore(VADModel):
                 coreset = self.product_quantizer.encode(coreset)
 
             self.memory_bank = coreset
-    
+
     def train_chunk(
         self, train_dataloader, training_args: TrainingArgs
     ):
@@ -235,6 +235,10 @@ class PatchCore(VADModel):
                 coreset = self.product_quantizer.encode(coreset)
 
             self.memory_bank = coreset
+
+            del embeddings
+            del total_embbeddings
+            torch.cuda.empty_cache()
 
     def generate_embedding(self, features: dict[str, Tensor]) -> Tensor:
         """Generate embedding from hierarchical feature map.
@@ -477,7 +481,7 @@ class PatchCore(VADModel):
         # 6. Apply the weight factor to the score
         return weights * score
 
-    def save_model(self, save_path: str):
+    def save(self, save_path: str):
         """
         Save the Patchcore model
 
@@ -485,12 +489,10 @@ class PatchCore(VADModel):
         ----------
             save_path (str): where the model will be saved
         """
-        self.register_buffer("memory_bank", Tensor())
-        model_state_dict = self.state_dict()
         if self.apply_quantization:
             assert self.product_quantizer is not None
             self.product_quantizer.save(save_path + "/product_quantizer.bin")
-        torch.save(model_state_dict, save_path)
+        torch.save(self.memory_bank, save_path)
 
     def load(self, model_state_dict_patch, quantizer_state_dict_path):
         """

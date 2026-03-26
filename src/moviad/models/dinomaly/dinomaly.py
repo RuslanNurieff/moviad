@@ -238,8 +238,13 @@ class Dinomaly(VADModel):
         mask_all[1 + self.encoder.num_register_tokens:, 1 + self.encoder.num_register_tokens:] = mask
         return mask_all
 
+    def get_model_size(self):
+        total_params = sum(p.numel() for p in self.parameters())
+        bytes_per_param = 4
+        total_size_mb = (total_params * bytes_per_param) / (1024 ** 2)
 
-        
+        return total_size_mb
+            
 
 
             
