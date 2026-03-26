@@ -83,8 +83,8 @@ class Trainer:
 
             if self.logger:
                 self.logger.log({
-                    f"{self.logging_prefix}/train/epoch" : epoch,
-                    f"{self.logging_prefix}/train/train_loss" : avg_batch_loss
+                    f"{self.logging_prefix}train/epoch" : epoch,
+                    f"{self.logging_prefix}train/train_loss" : avg_batch_loss
                 })
 
             if (epoch + 1) % self.train_args.evaluation_epoch_interval == 0:
