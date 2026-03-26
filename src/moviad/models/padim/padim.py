@@ -64,8 +64,6 @@ class PadimTrainArgs(TrainingArgs):
     loss_function are unused. Training consists of a single pass through
     the data to collect embeddings and fit a multivariate Gaussian.
     """
-    diag_cov: bool = False
-
     def init_train(self, model: VADModel):
         # Padim has no optimizer or loss — training is statistical fitting
         pass
@@ -79,7 +77,6 @@ class Padim(VADModel):
         "d",
         "gauss_mean",
         "gauss_cov",
-        "diag_cov",
         "layers_idxs",
     ]
 
@@ -89,7 +86,6 @@ class Padim(VADModel):
         layers_idxs: Union[Tuple, List],
         device: str,
         class_name: str = "",
-        diag_cov: bool = False,
     ):
         """
         Args:
@@ -97,13 +93,10 @@ class Padim(VADModel):
                 'phinet_1.2_0.5_6_downsampling', 'micronet-m1', 'mcunet-in3'
             layers_idxs: indices of the layers to extract features from
             class_name: category name (e.g. 'bottle', 'cable', ...)
-            diag_cov: if True, keep only the diagonal elements of the covariance matrices
         """
         super().__init__()
-        self.diagonal_gauss_cov = None
         self.class_name = class_name
         self.device = device
-        self.diag_cov = diag_cov
         # feature extractor backbone model
         self.backbone_model_name = backbone_model_name
         self.layers_idxs = layers_idxs
@@ -160,7 +153,7 @@ class Padim(VADModel):
             )
         # dimensionality reduction: select the random dimensions to reduce the embedding vectors
         embedding_vectors = torch.index_select(
-            embedding_vectors.to(self.device), 1, self.random_dimensions
+            embedding_vectors, 1, self.random_dimensions.to(embedding_vectors.device)
         )
         return embedding_vectors
 
@@ -187,10 +180,7 @@ class Padim(VADModel):
         embedding_vectors = self.raw_feature_maps_to_embeddings(layer_outputs)
 
         # 3. compute the distance matrix
-        if self.diag_cov:
-            dist_list = self.compute_distances_diagonal(embedding_vectors)
-        else:
-            dist_list = self.compute_distances(embedding_vectors)
+        dist_list = self.compute_distances(embedding_vectors)
         # 4. upsample
         score_map = (
             F.interpolate(
@@ -253,15 +243,9 @@ class Padim(VADModel):
         embedding_vectors = self.raw_feature_maps_to_embeddings(layer_outputs)
 
         # 3. fit the multivariate Gaussian distribution
-        diag_cov = getattr(training_args, 'diag_cov', self.diag_cov)
-        if diag_cov:
-            self.fit_multivariate_diagonal_gaussian(
-                embedding_vectors, update_params=True
-            )
-        else:
-            self.fit_multivariate_gaussian(
-                embedding_vectors, update_params=True
-            )
+        self.fit_multivariate_gaussian(
+            embedding_vectors, update_params=True
+        )
 
         return 0.0  # no loss for Padim
 
@@ -278,35 +262,6 @@ class Padim(VADModel):
         batch = batch.to(self.device)
         return self.forward(batch)
 
-    def fit_multivariate_diagonal_gaussian(
-        self, embedding_vectors: torch.Tensor, update_params: bool
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Fit a multivariate Gaussian distribution to the set of given embedding vectors.
-
-        Returns:
-            List of mean and covariance matrix diagonal numpy arrays
-        """
-        B, C, H, W = embedding_vectors.size()
-
-        embedding_vectors = embedding_vectors.view(B, C, H * W)
-        mean = torch.mean(embedding_vectors.cpu(), dim=0).numpy()
-        diagonal_cov = torch.zeros(C, H * W).numpy()
-        I = np.identity(C)
-        # for every "patch" in the feature map, compute the covariance across the batch
-        for i in range(H * W):
-            # TODO: use np.var instead of np.cov in diagonal covariance computation
-            temp_cov = (
-                np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
-                + 0.01 * I
-            )
-
-            diagonal_cov[:, i] = np.diag(temp_cov)
-
-        if update_params:
-            self.gauss_mean, self.diagonal_gauss_cov = mean, diagonal_cov
-        return mean, diagonal_cov
-
     def fit_multivariate_gaussian(self, embedding_vectors, update_params, logger=None):
         """
         Fit a multivariate Gaussian distribution to the set of given embedding vectors.
@@ -322,18 +277,10 @@ class Padim(VADModel):
         I = np.identity(C)
         # for every "patch" in the feature map, compute the covariance across the batch
         for i in range(H * W):
-            if self.diag_cov:
-                temp_cov = (
-                    np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
-                    + 0.01 * I
-                )
-                temp_cov[~I.astype(bool)] = 0
-                cov[:, :, i] = temp_cov
-            else:
-                cov[:, :, i] = (
-                    np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
-                    + 0.01 * I
-                )
+            cov[:, :, i] = (
+                np.cov(embedding_vectors[:, :, i].cpu().numpy(), rowvar=False)
+                + 0.01 * I
+            )
             if logger is not None:
                 logger.log(
                     {
@@ -425,23 +372,3 @@ class Padim(VADModel):
         dist_list = np.sqrt(dist_sq).T.reshape(B, H, W)  # (B, H, W)
         return torch.tensor(dist_list)
 
-    def compute_distances_diagonal(self, embedding_vectors: torch.Tensor):
-        """
-        Compute the Mahalanobis distances between the embedding vectors and the
-        multivariate Gaussian distribution (diagonal covariance).
-        """
-        B, C, H, W = embedding_vectors.size()
-        embedding_vectors = embedding_vectors.view(B, C, H * W).cpu().numpy()
-        assert (
-            self.gauss_mean is not None and self.diagonal_gauss_cov is not None
-        ), "The model must be trained first."
-
-        # (B, C, H*W) - (1, C, H*W) -> (B, C, H*W)
-        diff = embedding_vectors - self.gauss_mean[np.newaxis, :, :]
-
-        # Mahalanobis with diagonal cov: sqrt(sum((x-mu)^2 / diag_cov))
-        # diagonal_gauss_cov shape: (C, H*W)
-        dist_sq = np.sum(diff ** 2 / self.diagonal_gauss_cov[np.newaxis, :, :], axis=1)  # (B, H*W)
-
-        dist = np.sqrt(dist_sq).reshape(B, H, W)
-        return torch.tensor(dist)

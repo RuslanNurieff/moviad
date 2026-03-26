@@ -38,7 +38,8 @@ class VISADataset(VADDataset):
         self.dataset_root = self.dataset_arguments.dataset_path 
 
         self.df = pd.read_csv(os.path.join(self.dataset_root, "split_csv", "1cls.csv"))
-        self.df = self.df[(self.df["object"]==category) & (self.df["split"]==split)]
+        split_str = split.value if hasattr(split, 'value') else split
+        self.df = self.df[(self.df["object"]==category) & (self.df["split"]==split_str)]
 
     def __len__(self):
         return len(self.df)

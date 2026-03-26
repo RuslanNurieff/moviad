@@ -34,7 +34,6 @@ def train_padim(args: PadimArgs, logger=None) -> None:
         args.backbone,
         args.category,
         device=args.device,
-        diag_cov=args.diagonal_convergence,
         layers_idxs=args.ad_layers,
     )
     padim.to(args.device)
