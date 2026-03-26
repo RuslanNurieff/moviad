@@ -13,7 +13,7 @@ from moviad.models.stfpm.loss_functions import stfpm_loss
 @dataclass
 class STFPMTrainArgs(TrainingArgs):
 
-    lr: float
+    lr: float = 0.04
 
     def init_train(self, model: VADModel):
         if self.optimizer is None:
