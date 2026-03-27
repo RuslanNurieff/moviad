@@ -21,6 +21,7 @@ from moviad.models.patchcore.anomaly_map import AnomalyMapGenerator
 from moviad.models.patchcore.kcenter_greedy import CoresetExtractor
 from moviad.models.training_args import TrainingArgs
 from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtractor
+from moviad.utilities.get_sizes import params_to_mb, count_params
 
 class PatchCore(VADModel):
     """Patchcore Module."""
@@ -586,25 +587,13 @@ class PatchCore(VADModel):
         # Show the plot
         plt.savefig(str(dirpath + f"/{x_type}_{filename}.jpg"))
 
-    # def get_model_size_and_macs(self):
-    #     sizes = {}
+    def get_model_size(self):
 
-    #     # get feature extractor size, params, and macs
+        feautre_extractor_params = self.feature_extractor.get_size()
+        memory_bank_params = params_to_mb(count_params(self.memory_bank))
 
-    #     macs, params = get_model_macs(self.feature_extractor.model)
-    #     sizes["feature_extractor"] = {
-    #         "size" : get_torch_model_size(self.feature_extractor.model),
-    #         "params" : params,
-    #         "macs" : macs
-    #     }
-
-    #     # get MB size and shape
-    #     sizes["memory_bank"] = {
-    #         "size" : get_tensor_size(self.memory_bank),
-    #         "type" : str(self.memory_bank.dtype),
-    #         "shape" : self.memory_bank.shape
-    #     }
-
-    #     total_size = sizes["feature_extractor"]["size"] + sizes["memory_bank"]["size"]
-
-    #     return sizes, total_size
+        return {
+            "feature_extractor": feautre_extractor_params,
+            "memory_bank": memory_bank_params,
+            "total": feautre_extractor_params + memory_bank_params
+        }

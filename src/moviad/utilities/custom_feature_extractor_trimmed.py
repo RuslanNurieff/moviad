@@ -11,6 +11,7 @@ import torchvision
 from torchvision.models.feature_extraction import create_feature_extractor
 from moviad.backbones.mcunet.mcunet.model_zoo import net_id_list, build_model
 from moviad.backbones.micronet.micronet import micronetBB
+from moviad.utilities.get_sizes import count_params, params_to_mb
 
 try:
     from micromind.networks.phinet import PhiNet
@@ -335,3 +336,6 @@ class CustomFeatureExtractor:
             self.features = []
             self.model(batch.to(self.device))
             return self.features
+
+    def get_size(self):
+        return params_to_mb(count_params(self.model))

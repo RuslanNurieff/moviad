@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.nn.init import trunc_normal_
 #from torch.optim import StableAdamW, WarmCosineScheduler
 from torch.nn import functional as F
- 
+
 from moviad.models.training_args import TrainingArgs
 from moviad.models.vad_model import VADModel
 from moviad.models.dinomaly.components import bMlp, Block as VitBlock, LinearAttention2, global_cosine_hm_percent
@@ -13,7 +13,6 @@ from moviad.models.dinomaly.optimizers import StableAdamW
 from moviad.models.dinomaly.scheduler import WarmCosineScheduler
 
 import math
-
 class DinomalyTrainArgs(TrainingArgs):
 
     total_iters: int = 5000
@@ -23,18 +22,18 @@ class DinomalyTrainArgs(TrainingArgs):
         if not self.optimizer:
             self.optimizer = StableAdamW(
                 [{'params': model.trainable.parameters()}],
-                lr=2e-3, 
-                betas=(0.9, 0.999), 
-                weight_decay=1e-4, 
-                amsgrad=True, 
+                lr=2e-3,
+                betas=(0.9, 0.999),
+                weight_decay=1e-4,
+                amsgrad=True,
                 eps=1e-8
             )
 
         if not self.lr_scheduler:
             self.lr_scheduler = WarmCosineScheduler(
-                self.optimizer, 
-                base_value=2e-3, 
-                final_value=2e-4, 
+                self.optimizer,
+                base_value=2e-3,
+                final_value=2e-4,
                 total_iters=self.total_iters,
                 warmup_iters=100
             )
@@ -47,7 +46,7 @@ class DinomalyTrainArgs(TrainingArgs):
         return {
             "total_iters": self.total_iters,
         }
-    
+
 class Dinomaly(VADModel):
     def __init__(
         self,
@@ -59,7 +58,7 @@ class Dinomaly(VADModel):
         remove_class_token=False,
     ) -> None:
         super(Dinomaly, self).__init__()
-        
+
         self.encoder_name = encoder_name
 
         encoder = timm.create_model(self.encoder_name, pretrained=True, img_size=(224, 224))
@@ -72,7 +71,7 @@ class Dinomaly(VADModel):
             return x
 
         encoder.prepare_tokens = prepare_tokens
-        
+
         embed_dim = encoder.num_features
         num_heads = encoder.blocks[0].attn.num_heads
 
@@ -84,11 +83,11 @@ class Dinomaly(VADModel):
 
         for i in range(8):
             blk = VitBlock(
-                dim=embed_dim, 
-                num_heads=num_heads, 
+                dim=embed_dim,
+                num_heads=num_heads,
                 mlp_ratio=4.,
-                qkv_bias=True, 
-                norm_layer=partial(nn.LayerNorm, eps=1e-8), 
+                qkv_bias=True,
+                norm_layer=partial(nn.LayerNorm, eps=1e-8),
                 attn_drop=0.,
                 attn=LinearAttention2
             )
@@ -138,15 +137,15 @@ class Dinomaly(VADModel):
         B, C, H, W = x.shape
         x = self.encoder.prepare_tokens(x)
         en_list = []
-        
+
         # encoder forward
         for i, blk in enumerate(self.encoder.blocks):
             if i <= self.target_layers[-1]:
                 x = blk(x)
-                        
+
             if i in self.target_layers:
                 en_list.append(x)
-                
+
         side = int(math.sqrt(en_list[0].shape[1] - 1 - self.encoder.num_reg_tokens))
 
         x = self.fuse_feature(en_list)
@@ -176,7 +175,7 @@ class Dinomaly(VADModel):
 
         en = [e.permute(0, 2, 1).reshape([x.shape[0], -1, side, side]).contiguous() for e in en]
         de = [d.permute(0, 2, 1).reshape([x.shape[0], -1, side, side]).contiguous() for d in de]
-        
+
         if self.training:
             return en, de
         else:
@@ -244,7 +243,3 @@ class Dinomaly(VADModel):
         total_size_mb = (total_params * bytes_per_param) / (1024 ** 2)
 
         return total_size_mb
-            
-
-
-            

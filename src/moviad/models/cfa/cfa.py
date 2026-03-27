@@ -22,6 +22,7 @@ from moviad.utilities.custom_feature_extractor_trimmed import CustomFeatureExtra
 from moviad.models.vad_model import VADModel
 from moviad.models.training_args import TrainingArgs
 from moviad.models.cfa.cfa_loss import soft_boundary
+from moviad.utilities.get_sizes import count_params, params_to_mb
 
 @dataclass
 class CFATrainArgs(TrainingArgs):
@@ -217,45 +218,17 @@ class CFA(VADModel):
 
         return memory_bank
 
-    def get_model_size_and_macs(self) -> tuple[dict, float]:
+    def get_model_size(self):
+        feature_extractor_params = self.feature_extractor.get_size()
+        descriptor_params = params_to_mb(count_params(self.Descriptor))
+        memory_bank_params = params_to_mb(count_params(self.memory_bank))
 
-        """
-        This method returns the model size and inference MACs
-
-        Returns:
-            tuple:
-                [0] : dict with all model components sizes, macs and number of parameters
-                [1] : total size of the AD model
-        """
-
-        sizes = {}
-
-        # get feature extractor and patch descriptor size, params and macs
-
-        macs, params = get_model_macs(self.feature_extractor.model)
-        sizes["feature_extractor"] = {
-            "size" : get_torch_model_size(self.feature_extractor.model),
-            "params" : params,
-            "macs" : macs
+        return {
+            "feature_extractor": feature_extractor_params,
+            "descriptor": descriptor_params,
+            "memory_bank": memory_bank_params,
+            "total": feature_extractor_params + descriptor_params + memory_bank_params
         }
-
-        macs, params = get_model_macs(self.Descriptor, self.feature_maps_shape)
-        sizes["patch_descriptor"] = {
-            "size" : get_torch_model_size(self.Descriptor),
-            "params" : params,
-            "macs" : macs
-        }
-
-        # get MB size and shape
-        sizes["memory_bank"] = {
-            "size" : get_tensor_size(self.memory_bank),
-            "type" : str(self.memory_bank.dtype),
-            "shape" : self.memory_bank.shape
-        }
-
-        total_size = sizes["feature_extractor"]["size"] + sizes["patch_descriptor"]["size"] + sizes["memory_bank"]["size"]
-
-        return sizes, total_size
 
     def load_model(self, path):
 

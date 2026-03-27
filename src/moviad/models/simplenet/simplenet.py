@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from moviad.models.training_args import TrainingArgs
 from moviad.models.vad_model import VADModel
+from moviad.utilities.get_sizes import count_params, params_to_mb
 
 def init_weight(m):
     if isinstance(m, torch.nn.Linear):
@@ -95,7 +96,7 @@ class SimpleNetTrainArgs(TrainingArgs):
                 self.optimizer_disc,
                 (self.meta_epochs - self.aed_meta_epochs) * self.gan_epochs, self.disc_lr*.4
             )
-    
+
     def __to_dict__(self):
 
         basic_dict = super().__to_dict__()
@@ -117,8 +118,6 @@ class SimpleNetTrainArgs(TrainingArgs):
                 "eta_min": self.scheduler_disc.eta_min,
             } if self.scheduler_disc else None,
         }
-
-
 
 class SimpleNet(VADModel):
 
@@ -244,24 +243,16 @@ class SimpleNet(VADModel):
             heatmaps = blur(upsampled_scores)
 
             return heatmaps, image_scores
-        
-    def get_model_size(self):
-        def count_params(module):
-            if module is None:
-                return 0
-            return sum(p.numel() for p in module.parameters())
-        
-        def params_to_mb(params):
-            bytes_per_param = 4 
-            return (params * bytes_per_param) / (1024 ** 2)
 
-        feature_extractor_params = count_params(self.feature_extractor.model)
-        adaptor_params = count_params(self.adaptor)
-        discriminator_params = count_params(self.discriminator)
+    def get_model_size(self):
+
+        feature_extractor_params = self.feature_extractor.get_size()
+        adaptor_params = params_to_mb(count_params(self.adaptor))
+        discriminator_params = params_to_mb(count_params(self.discriminator))
 
         return {
-            "feature_extractor": params_to_mb(feature_extractor_params),
-            "adaptor": params_to_mb(adaptor_params),
-            "discriminator": params_to_mb(discriminator_params) ,
-            "total": params_to_mb(feature_extractor_params + adaptor_params + discriminator_params)
+            "feature_extractor": feature_extractor_params,
+            "adaptor": adaptor_params,
+            "discriminator": discriminator_params,
+            "total": feature_extractor_params + adaptor_params + discriminator_params
         }

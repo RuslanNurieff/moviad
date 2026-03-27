@@ -43,3 +43,6 @@ class ContinualModel(ABC):
 
     @abstractmethod
     def end_task(self, task_index:int, train_dataset: VADDataset, train_args: TrainingArgs = None): ...
+
+    def get_size(self):
+        pass

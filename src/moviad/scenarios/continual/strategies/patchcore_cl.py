@@ -2,6 +2,7 @@ from moviad.datasets.vad_dataset import VADDataset
 from moviad.scenarios.continual.continual_model import ContinualModel
 from moviad.models.patchcore.patchcore import PatchCore
 from moviad.models.training_args import TrainingArgs
+from moviad.utilities.get_sizes import params_to_mb, count_params
 
 import torch
 from tqdm import tqdm
@@ -60,11 +61,11 @@ class PatchCoreCL(ContinualModel):
     def end_task(self, task_index:int, train_dataset: VADDataset, train_args: TrainingArgs = None):
         pass
 
-    def forward(self, batch: torch.Tensor):                                                                                                                                                     
-                                                                                                                                                                                            
-      anomaly_maps, pred_scores, mean_distances = [], [], []                                                                                                                                  
-      embedding, batch_size, width, height = self.vad_model.extract_embedding(batch)                                                                                                          
-      image_size = batch.shape[2:]                                                                                                                                                            
+    def forward(self, batch: torch.Tensor):
+
+      anomaly_maps, pred_scores, mean_distances = [], [], []
+      embedding, batch_size, width, height = self.vad_model.extract_embedding(batch)
+      image_size = batch.shape[2:]
 
       for task_id in self.vad_model.memory_bank:
           task_memory_bank = self.vad_model.memory_bank[task_id].to(self.vad_model.device)
@@ -112,3 +113,16 @@ class PatchCoreCL(ContinualModel):
       min_scores       = anomaly_scores[batch_idx, min_task_idx] # (batch,)
 
       return min_anomaly_maps, min_scores
+
+    def get_model_size(self):
+        feature_extractor_size = self.vad_model.feature_extractor.get_size()
+
+        memory_bank_size = 0
+        for task_id in self.vad_model.memory_bank:
+            memory_bank_size += params_to_mb(count_params(self.vad_model.memory_bank[task_id]))
+
+        return {
+            "feature_extractor": feature_extractor_size,
+            "memory_bank": memory_bank_size,
+            "total": feature_extractor_size + memory_bank_size
+        }
