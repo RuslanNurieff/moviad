@@ -35,7 +35,7 @@ class Split(str, Enum):
     #     self.perc = perc
 
     TRAIN = "train"
-    VALID = "valid"
+    VAL = "valid"
     TEST = "test"
 
 class LabelName(int, Enum):
